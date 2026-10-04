@@ -1,0 +1,52 @@
+//
+//  ADBLocator.swift
+//  ADBMonitor
+//
+
+import Foundation
+
+protocol ADBLocating {
+    /// Path `adb` yang bisa dieksekusi, atau `nil`.
+    /// Jika `customPath` diisi, hanya path itu yang diperiksa (tanpa fallback ke deteksi otomatis).
+    func locate(customPath: String?) -> String?
+}
+
+struct ADBLocator: ADBLocating {
+
+    private static let wellKnownPaths = [
+        "/opt/homebrew/bin/adb",
+        "/usr/local/bin/adb",
+        "/usr/bin/adb",
+    ]
+
+    private let environment: [String: String]
+    private let fileManager: FileManager
+    private let homeDirectory: String
+
+    init(environment: [String: String] = ProcessInfo.processInfo.environment,
+         fileManager: FileManager = .default,
+         homeDirectory: String = NSHomeDirectory()) {
+        self.environment = environment
+        self.fileManager = fileManager
+        self.homeDirectory = homeDirectory
+    }
+
+    func locate(customPath: String?) -> String? {
+        if let customPath = customPath?.trimmed, !customPath.isEmpty {
+            let expanded = (customPath as NSString).expandingTildeInPath
+            return fileManager.isRunnableFile(atPath: expanded) ? expanded : nil
+        }
+        return autoDetectCandidates().first(where: fileManager.isRunnableFile(atPath:))
+    }
+
+    private func autoDetectCandidates() -> [String] {
+        let searchPath = (environment["PATH"] ?? "").split(separator: ":").map { "\($0)/adb" }
+        let sdkRoots = ["ANDROID_HOME", "ANDROID_SDK_ROOT"]
+            .compactMap { environment[$0] }
+            .filter { !$0.isEmpty }
+            .map { "\($0)/platform-tools/adb" }
+        let defaultSDK = "\(homeDirectory)/Library/Android/sdk/platform-tools/adb"
+
+        return searchPath + Self.wellKnownPaths + sdkRoots + [defaultSDK]
+    }
+}

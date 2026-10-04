@@ -1,0 +1,65 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Xcode: data per-pengguna (state UI, breakpoint, daftar scheme pribadi)
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+*.xcscmblueprint
+
+# Xcode: hasil build dan arsip
+build/
+DerivedData/
+*.xcarchive
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.hmap
+*.o
+*.d
+*.pcm
+
+# Xcode: log dan profiling
+*.xcresult
+*.trace
+*.profraw
+
+# Swift Package Manager
+.build/
+.swiftpm/
+# Package.resolved sengaja TIDAK diabaikan: untuk aplikasi, versi dependensi sebaiknya ikut ter-commit.
+
+# Dependency manager lain (jika kelak dipakai)
+Pods/
+Carthage/Build/
+Carthage/Checkouts/
+
+# Playground
+timeline.xctimeline
+playground.xcworkspace
+
+# Tooling lokal
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+.claude/settings.local.json
+
+# Rahasia dan konfigurasi lokal
+.env
+.env.*
+*.p12
+*.mobileprovision
+*.provisionprofile
+Secrets.xcconfig
+*.local.xcconfig
+
+# Editor lain
+.idea/
+.vscode/
+*.swp
+*~
