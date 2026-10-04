@@ -14,11 +14,19 @@
 			remoteGlobalIDString = A5E575CB3071E8C4005F6600;
 			remoteInfo = ADBMonitor;
 		};
+		A5E576053071E8C5005F6600 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A5E575C43071E8C4005F6600 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A5E575CB3071E8C4005F6600;
+			remoteInfo = ADBMonitor;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A5E575CC3071E8C4005F6600 /* ADBMonitor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ADBMonitor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A5E575F03071E8C5005F6600 /* ADBMonitorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ADBMonitorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A5E575FB3071E8C5005F6600 /* ADBMonitorUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ADBMonitorUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -30,6 +38,11 @@
 		A5E575F13071E8C5005F6600 /* ADBMonitorTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = ADBMonitorTests;
+			sourceTree = "<group>";
+		};
+		A5E575FC3071E8C5005F6600 /* ADBMonitorUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ADBMonitorUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -45,6 +58,11 @@
 			files = (
 			);
 		};
+		A5E575FF3071E8C5005F6600 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -53,6 +71,7 @@
 			children = (
 				A5E575CE3071E8C4005F6600 /* ADBMonitor */,
 				A5E575F13071E8C5005F6600 /* ADBMonitorTests */,
+				A5E575FC3071E8C5005F6600 /* ADBMonitorUITests */,
 				A5E575CD3071E8C4005F6600 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -62,6 +81,7 @@
 			children = (
 				A5E575CC3071E8C4005F6600 /* ADBMonitor.app */,
 				A5E575F03071E8C5005F6600 /* ADBMonitorTests.xctest */,
+				A5E575FB3071E8C5005F6600 /* ADBMonitorUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -108,6 +128,27 @@
 			productReference = A5E575F03071E8C5005F6600 /* ADBMonitorTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		A5E575FD3071E8C5005F6600 /* ADBMonitorUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A5E576013071E8C5005F6600 /* Build configuration list for PBXNativeTarget "ADBMonitorUITests" */;
+			buildPhases = (
+				A5E575FE3071E8C5005F6600 /* Sources */,
+				A5E575FF3071E8C5005F6600 /* Frameworks */,
+				A5E576003071E8C5005F6600 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A5E576043071E8C5005F6600 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A5E575FC3071E8C5005F6600 /* ADBMonitorUITests */,
+			);
+			name = ADBMonitorUITests;
+			productName = ADBMonitorUITests;
+			productReference = A5E575FB3071E8C5005F6600 /* ADBMonitorUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -122,6 +163,10 @@
 						CreatedOnToolsVersion = 27.0;
 					};
 					A5E575F23071E8C5005F6600 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = A5E575CB3071E8C4005F6600;
+					};
+					A5E575FD3071E8C5005F6600 = {
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = A5E575CB3071E8C4005F6600;
 					};
@@ -143,6 +188,7 @@
 			targets = (
 				A5E575CB3071E8C4005F6600 /* ADBMonitor */,
 				A5E575F23071E8C5005F6600 /* ADBMonitorTests */,
+				A5E575FD3071E8C5005F6600 /* ADBMonitorUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -154,6 +200,11 @@
 			);
 		};
 		A5E575F53071E8C5005F6600 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		A5E576003071E8C5005F6600 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -171,6 +222,11 @@
 			files = (
 			);
 		};
+		A5E575FE3071E8C5005F6600 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -178,6 +234,11 @@
 			isa = PBXTargetDependency;
 			target = A5E575CB3071E8C4005F6600 /* ADBMonitor */;
 			targetProxy = A5E575FA3071E8C5005F6600 /* PBXContainerItemProxy */;
+		};
+		A5E576043071E8C5005F6600 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A5E575CB3071E8C4005F6600 /* ADBMonitor */;
+			targetProxy = A5E576053071E8C5005F6600 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -392,6 +453,38 @@
 			};
 			name = Release;
 		};
+		A5E576023071E8C5005F6600 /* Debug configuration for PBXNativeTarget "ADBMonitorUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mories.adb.ADBMonitorUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = ADBMonitor;
+			};
+			name = Debug;
+		};
+		A5E576033071E8C5005F6600 /* Release configuration for PBXNativeTarget "ADBMonitorUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mories.adb.ADBMonitorUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = ADBMonitor;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -416,6 +509,14 @@
 			buildConfigurations = (
 				A5E575F73071E8C5005F6600 /* Debug configuration for PBXNativeTarget "ADBMonitorTests" */,
 				A5E575F83071E8C5005F6600 /* Release configuration for PBXNativeTarget "ADBMonitorTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		A5E576013071E8C5005F6600 /* Build configuration list for PBXNativeTarget "ADBMonitorUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A5E576023071E8C5005F6600 /* Debug configuration for PBXNativeTarget "ADBMonitorUITests" */,
+				A5E576033071E8C5005F6600 /* Release configuration for PBXNativeTarget "ADBMonitorUITests" */,
 			);
 			defaultConfigurationName = Release;
 		};

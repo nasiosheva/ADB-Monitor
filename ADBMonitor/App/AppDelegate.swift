@@ -41,6 +41,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func makeCoordinator() -> AppCoordinator {
+        #if DEBUG
+        // UI tests: adb is simulated and preferences are kept separate (see `App/UITesting`).
+        if let environment = UITestEnvironment.current() {
+            return UITestComposition.makeCoordinator(environment)
+        }
+        #endif
+
         let preferences = UserDefaultsPreferences()
         let locator = ADBLocator()
         let launchAtLogin = LaunchAtLogin.makeDefault()
