@@ -15,6 +15,7 @@ ADB Monitor is a macOS menu bar app (pure AppKit, no Dock icon). It runs `adb de
 - [Installation](#installation)
 - [Usage](#usage)
 - [Preferences](#preferences)
+- [Languages](#languages)
 - [Device states](#device-states)
 - [Error handling](#error-handling)
 - [Architecture](#architecture)
@@ -33,7 +34,9 @@ ADB Monitor is a macOS menu bar app (pure AppKit, no Dock icon). It runs `adb de
 - **Restart and Shut Down** with a confirmation dialog. Commands go only to the selected device (`adb -s <serial>`).
 - **Auto-refresh**: the menu updates when a device is plugged in or unplugged, even while the menu is open.
 - **Error handling** for a missing ADB install, a bad custom path, `adb` errors, and `adb` timeouts.
-- **Preferences**: custom ADB path and refresh interval (1–60 seconds, default 3).
+- **Preferences**: custom ADB path, refresh interval (1–60 seconds, default 3), language, and launch at login.
+- **Five languages**: English, Bahasa Indonesia, Chinese (Traditional), Cantonese, and Batak Toba, switchable at runtime without a restart (see [Languages](#languages)).
+- **Launch at login** (macOS 13 and later) from the Preferences window.
 - **Dark and light mode** supported automatically (the menu bar icon is a template image).
 - **Lightweight**: polls never overlap, no `adb` processes are left behind, and the code passes Swift 6 strict concurrency checking.
 
@@ -72,7 +75,7 @@ open build/Build/Products/Release/ADBMonitor.app
 
 Or open `ADBMonitor.xcodeproj` in Xcode and press **⌘R**.
 
-To use it like a normal app, copy `ADBMonitor.app` to `/Applications`. To start it at login, add it under **System Settings → General → Login Items**. There is no built-in "launch at login" option.
+To use it like a normal app, copy `ADBMonitor.app` to `/Applications`. To start it at login, turn on **Launch at login** in Preferences (macOS 13 and later), or on macOS 12 add it under **System Settings → General → Login Items**. Register it from the copy in `/Applications`, not from a build folder.
 
 > **Note:** the app is signed with "Sign to Run Locally" (ad hoc) and is not notarized. On another Mac, Gatekeeper will warn. Open it with right-click → **Open**.
 
@@ -137,6 +140,8 @@ Open it from **Preferences…** in the menu (⌘,).
 |---|---|
 | **ADB path** | Leave empty for auto-detection. Set it to use a specific binary. **Choose…** opens a file picker. The label under the field shows the path that will be used, or an error message. |
 | **Refresh interval** | Delay between polls, 1–60 seconds (default 3). |
+| **Language** | **System default** or one of the five languages. Applied on **Save**; the menu and dialogs switch immediately, with no restart. |
+| **Launch at login** | Registers the app as a login item (macOS 13+). On macOS 12 the checkbox is disabled with a hint. If macOS asks for approval, the hint points to **System Settings → General → Login Items**. |
 
 Changes take effect right after **Save**: the app refreshes immediately with the new settings.
 
@@ -151,7 +156,23 @@ GUI apps do not inherit the `PATH` from your shell, so `adb` is searched for in 
 
 If you set a custom **ADB path** and it is invalid, the app does **not** silently fall back to auto-detection. The menu shows "ADB not found at custom path" so the mistake is visible.
 
-Settings are stored in `UserDefaults` (keys `adbPath` and `refreshInterval`).
+Settings are stored in `UserDefaults` (keys `adbPath`, `refreshInterval`, and `language`). The launch-at-login state is not stored by the app: it is always read from macOS, because you can also change it in System Settings.
+
+## Languages
+
+| Language | Code | Notes |
+|---|---|---|
+| English | `en` | Reference language and fallback |
+| Bahasa Indonesia | `id` | |
+| Chinese (Traditional) | `zh-Hant` | Taiwan-style wording (偏好設定, 結束, 拷貝) |
+| Cantonese | `yue` | Written colloquial Cantonese in Traditional characters (嘅, 咗, 唔, 冇, 喺) |
+| Batak Toba | `bbc` | Technical terms use Indonesian loanwords |
+
+With **System default**, the app picks the first supported language in your macOS language list and falls back to English. Any Chinese variant maps to Traditional Chinese, and only `yue` maps to Cantonese.
+
+> **Translation quality:** all translations were written with AI assistance and have **not** been reviewed by native speakers. Cantonese and Batak Toba are the least certain and are marked as drafts in the source. Corrections are welcome: each language is one file under `ADBMonitor/Localization/`.
+
+Text that comes straight from `adb` (for example the first line of its error output) is shown as-is and is not translated.
 
 ## Device states
 
@@ -199,7 +220,8 @@ flowchart LR
 ADBMonitor/
 ├── App/            AppDelegate (entry point + composition root), AppCoordinator, MainMenuBuilder
 ├── Models/         ADBDevice, ADBStatus, ADBError, PowerAction
-├── Services/       ADBService, ADBLocator, DeviceListParser, DeviceMonitor, Scheduler
+├── Services/       ADBService, ADBLocator, DeviceListParser, DeviceMonitor, Scheduler, LaunchAtLogin
+├── Localization/   AppLanguage, L10nKey, Localizer, one Translations+<Language>.swift per language
 ├── Preferences/    Preference protocols, UserDefaultsPreferences
 ├── UI/             StatusBarController, StatusMenuBuilder, StatusButtonPresenter,
 │                   AlertPresenter, PreferencesWindowController, DeviceStateStyle
@@ -215,6 +237,8 @@ ADBMonitor/
 | `DeviceMonitor` | Polls on a timer and reports status changes |
 | `AppCoordinator` | Wires the monitor, the status bar, and user actions together |
 | `StatusBarController` / `StatusMenuBuilder` | Own the `NSStatusItem` and build the `NSMenu` dropdown |
+| `Localizer` | Resolves the effective language and returns text for an `L10nKey`; announces language changes |
+| `LaunchAtLogin` | Reads and changes the login item through `SMAppService` (macOS 13+) behind a small protocol |
 
 ### Key design decisions
 
@@ -225,11 +249,22 @@ ADBMonitor/
 - **No hanging `adb` processes.** After the process exits, the app waits for pipe EOF for at most 1 second, with one shared deadline for stdout and stderr, because `adb` can leave a daemon child that still holds the pipe.
 - **No retain cycles.** Closures capture `weak` references, and `Process` and the pipe collectors are created per run and released afterwards.
 - **Explicit concurrency isolation.** UI code, `DeviceMonitor`, and `AppCoordinator` are `@MainActor`. Cross-thread code (`ProcessManager`) is `@unchecked Sendable`, with the reason in a comment. The result is clean under `-strict-concurrency=complete` (Swift 5) and under the Swift 6 language mode.
+- **Text lives in tables, not in code.** Models carry `L10nKey`s instead of English strings, and every user-visible string is looked up through `Localizer`. Tables are Swift dictionaries rather than `.lproj` files, so the language can change at runtime and codes such as `bbc` and `yue` need no Xcode localization setup. A missing key falls back to English.
+- **Language changes propagate through notifications.** Saving preferences posts `.preferencesDidChange`; `Localizer` re-resolves the language and posts `.languageDidChange` only when it really changed; `StatusBarController` then rebuilds the menu from its last status.
+- **Colored status dots are part of the title.** `NSMenuItem.image` is not drawn on current macOS, so the dot is a colored character inside an attributed title.
 - **Explicit entry point.** `AppDelegate` is `@main` and defines its own `static func main()`. `@main` alone only calls `NSApplicationMain`, which creates the delegate only when a nib exists, and this project has no nib.
+
+### Adding or changing text
+
+1. Add a case to `L10nKey`.
+2. Add the string to **every** `Translations+<Language>.swift` file, with the same placeholders (`%@`, or `%1$@` and `%2$@` when argument order differs).
+3. Read it with `localizer.text(.yourKey, arguments…)`.
+
+To add a language, add a case to `AppLanguage` (with its autonym), a `Translations+<Language>.swift` file, and a branch in `Translations.table(for:)`. The compiler enforces the `switch` statements; completeness of each table and placeholder consistency are checked by a test harness (see [Testing](#testing)).
 
 ### Adding a new power action
 
-`PowerAction` is `CaseIterable`. The menu items, the confirmation dialog, the adb arguments, and per-state availability are all derived from it. Adding an action (for example reboot to recovery) means adding one `case`. `StatusMenuBuilder` and `AlertPresenter` do not change.
+`PowerAction` is `CaseIterable`. The menu items, the confirmation dialog, the adb arguments, and per-state availability are all derived from it. Adding an action (for example reboot to recovery) means adding one `case`, its `L10nKey`s, and their translations. `StatusMenuBuilder` and `AlertPresenter` do not change.
 
 ## Development
 
@@ -252,9 +287,28 @@ The project uses `PBXFileSystemSynchronizedRootGroup`, so new Swift files under 
 
 ### Testing
 
-There is no test target in the Xcode project yet. However, everything in `Models/`, `Services/`, `Preferences/`, and `Utils/` is free of AppKit, and all dependencies are protocols (`ProcessRunning`, `ADBLocating`, `DeviceListParsing`, `ADBServicing`, `Scheduling`, and so on). This makes the logic easy to test with fakes, without a real device. For example, `DeviceMonitor` can be tested with a fake `Scheduling` that you fire by hand.
+The `ADBMonitorTests` target contains 130+ XCTest unit tests. Run them with **⌘U** in Xcode, or:
 
-`DeviceMonitor` is `@MainActor`. In a `swiftc`-based test harness, wrap its use in `MainActor.assumeIsolated { ... }`.
+```sh
+xcodebuild test -project ADBMonitor.xcodeproj -scheme ADBMonitor -destination 'platform=macOS'
+```
+
+Tests use fakes for every protocol boundary (`ProcessRunning`, `ADBLocating`, `ADBServicing`, `Scheduling`, `DeviceMonitoring`, `AlertPresenting`, `StatusBarRendering`, `PreferencesPresenting`), so no Android device is needed. A few tests run real processes (`/bin/sh`, `/usr/bin/yes`) to cover timeouts, large output, and child processes that inherit the pipe.
+
+| Area | What is covered |
+|---|---|
+| `DeviceListParser` | Both USB path formats, `no permissions`, daemon lines, sorting, malformed input |
+| `ADBLocator` | Custom path rules, no silent fallback, `PATH`, well-known paths, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, home SDK, search order |
+| `ADBService` | adb arguments for restart and shut down, error mapping, stderr handling |
+| `DeviceMonitor` | No overlapping polls, queued refresh, change-only notifications, `stop` behavior |
+| `ProcessManager` | Output capture, 3 MB output, timeout, missing executable, inherited pipe, completion queue |
+| Preferences, localization | Defaults, trimming, clamping, notifications, completeness of all five translation tables, placeholder consistency, language resolution |
+| `StatusMenuBuilder` | Menu structure per status, submenu rows, power item enablement, click handling, colored dot, languages |
+| `AppCoordinator` | Lifecycle, confirm → perform → refresh → error ordering, lazy preferences window |
+
+Not covered by automated tests: `AlertPresenter` (modal dialogs), `PreferencesWindowController` (layout and the Save flow), `StatusButtonPresenter`, `MainMenuBuilder`, copying the serial to the clipboard (it would overwrite yours), and a real login item registration (it would register the build folder). Check those by looking at them.
+
+The test host is the app itself. `AppDelegate` skips its startup when XCTest is loaded, so tests never create a menu bar item or run `adb`. The test target builds for macOS 14 because XCTest requires it; the app still targets macOS 12.
 
 ### Lint and concurrency checks
 
@@ -311,11 +365,11 @@ Connect it in the terminal first, for example `adb connect 192.168.1.5:5555` or 
 
 - No binary release, notarization, or auto-update yet.
 - Cannot be distributed through the Mac App Store because App Sandbox is turned off.
-- No built-in "launch at login" option.
+- "Launch at login" needs macOS 13 or later. On macOS 12 add the app under System Settings → Login Items yourself.
 - No notification when a device connects or disconnects. Only the icon and the menu update.
 - Only Restart and Shut Down. Reboot to recovery or bootloader is not implemented (easy to add, see [Adding a new power action](#adding-a-new-power-action)).
-- No test target in the Xcode project yet.
-- The UI is English only (not localized).
+- Translations are AI-written and unreviewed; Cantonese and Batak Toba are drafts (see [Languages](#languages)).
+- Chinese is Traditional only; there is no Simplified Chinese table yet.
 
 ## Privacy and security
 
