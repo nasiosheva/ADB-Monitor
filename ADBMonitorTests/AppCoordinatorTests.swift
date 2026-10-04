@@ -19,6 +19,8 @@ final class AppCoordinatorTests: XCTestCase {
     private var wirelessHandler: RecordingWirelessHandler!
     private var settings: FakeSettingsOpener!
     private var toolsHandler: RecordingMenuHandler!
+    private var screenHandler: RecordingMenuHandler!
+    private var changeTracker: FakeChangeTracker!
     private var detailsTracker: FakeDetailsTracker!
     private var log: CallLog!
     private var statusBarFactoryCalls = 0
@@ -39,6 +41,8 @@ final class AppCoordinatorTests: XCTestCase {
         wirelessHandler = RecordingWirelessHandler()
         settings = FakeSettingsOpener()
         toolsHandler = RecordingMenuHandler()
+        screenHandler = RecordingMenuHandler()
+        changeTracker = FakeChangeTracker()
         detailsTracker = FakeDetailsTracker()
         settings.log = log
         statusBarFactoryCalls = 0
@@ -53,9 +57,11 @@ final class AppCoordinatorTests: XCTestCase {
                                      alerts: alerts,
                                      wireless: wirelessHandler,
                                      tools: toolsHandler,
+                                     screen: screenHandler,
                                      settings: settings,
                                      localizer: english,
                                      detailsTracker: detailsTracker,
+                                     changeTracker: changeTracker,
                                      makeStatusBar: { [unowned self] _ in
                                          statusBarFactoryCalls += 1
                                          return statusBar
@@ -194,6 +200,32 @@ final class AppCoordinatorTests: XCTestCase {
         try XCTUnwrap(monitor.onPoll)(devices)
         try XCTUnwrap(monitor.onPoll)(devices)
         XCTAssertEqual(detailsTracker.tracked, [devices, devices])
+    }
+
+    func testEveryPollIsAlsoHandedToTheChangeTracker() throws {
+        coordinator.start()
+        let devices = [Sample.device("A")]
+        try XCTUnwrap(monitor.onPoll)(devices)
+        try XCTUnwrap(monitor.onPoll)([])
+        XCTAssertEqual(changeTracker.tracked, [devices, []])
+    }
+
+    func testRecordingStateFromTheScreenFlowsIsRenderedOnTheStatusBar() throws {
+        coordinator.start()
+        try XCTUnwrap(screenHandler.onRecordingChange)(["SER1"])
+        try XCTUnwrap(screenHandler.onRecordingChange)([])
+        XCTAssertEqual(statusBar.renderedRecording, [["SER1"], []])
+    }
+
+    func testScreenActionsAreForwardedToTheScreenHandler() {
+        let device = Sample.device("SER1")
+        coordinator.statusMenu(didRequestScreenshotOf: device)
+        coordinator.statusMenu(didRequestToggleRecordingOf: device)
+        coordinator.statusMenu(didRequestMirror: device)
+        XCTAssertEqual(screenHandler.screenshotRequests, [device])
+        XCTAssertEqual(screenHandler.recordingToggles, [device])
+        XCTAssertEqual(screenHandler.mirrorRequests, [device])
+        XCTAssertTrue(toolsHandler.screenshotRequests.isEmpty)
     }
 
     func testDetailsFromTheTrackerAreRenderedOnTheStatusBar() throws {

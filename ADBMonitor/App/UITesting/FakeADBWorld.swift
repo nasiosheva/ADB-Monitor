@@ -98,6 +98,9 @@ final class FakeADBWorld {
         case (let serial?, "reboot"): return Output(stdout: knows(serial) ? "" : "", exitCode: knows(serial) ? 0 : 1)
         case (let serial?, "tcpip"): return Output(stdout: "restarting in TCP mode port: \(args.dropFirst().first ?? "")\n",
                                                    exitCode: knows(serial) ? 0 : 1)
+        case (let serial?, "pull"):
+            return Output(stdout: "\(args.dropFirst().first ?? ""): 1 file pulled, 0 skipped.\n",
+                          exitCode: knows(serial) ? 0 : 1)
         case (let serial?, "shell"): return shell(serial: serial, Array(args.dropFirst()))
         default: return Output(stderr: "adb: unknown command \(args.first ?? "")\n", exitCode: 1)
         }
@@ -165,7 +168,7 @@ final class FakeADBWorld {
                 + "  level: 87\n  scale: 100\n")
         }
         switch args.prefix(2).joined(separator: " ") {
-        case "reboot -p":
+        case "reboot -p", "screencap -p", "rm -f":
             return Output()
         case "am start":
             return Output(stdout: "Starting: Intent { act=android.settings.APPLICATION_DEVELOPMENT_SETTINGS }\n")

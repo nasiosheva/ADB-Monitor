@@ -79,6 +79,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let tools = ToolsCoordinator(server: service, fastboot: fastboot, alerts: alerts, monitor: monitor,
                                      localizer: localizer)
 
+        let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        let scrcpyLocator = ADBLocator(executableName: "scrcpy")
+        let launcher = ProcessLauncher()
+        let screen = ScreenCoordinator(screenshots: service,
+                                       recorder: ScrcpyRecorder(scrcpyLocator: scrcpyLocator, adbLocator: locator,
+                                                                pathProvider: preferences, launcher: launcher,
+                                                                scheduler: scheduler),
+                                       mirror: ScrcpyMirror(scrcpyLocator: scrcpyLocator, adbLocator: locator,
+                                                            pathProvider: preferences, launcher: launcher,
+                                                            scheduler: scheduler),
+                                       files: FinderFileRevealer(),
+                                       alerts: alerts,
+                                       localizer: localizer,
+                                       directory: desktop)
+        let changeNotifier = DeviceChangeNotifier(settings: preferences,
+                                                  notifier: UserNotificationNotifier(localizer: localizer))
+
         let makePreferencesWindow: @MainActor () -> PreferencesWindowController = {
             PreferencesWindowController(preferences: preferences,
                                         locator: locator,
@@ -91,9 +109,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                               alerts: alerts,
                               wireless: wireless,
                               tools: tools,
+                              screen: screen,
                               settings: service,
                               localizer: localizer,
                               detailsTracker: DeviceDetailsTracker(reader: service),
+                              changeTracker: changeNotifier,
                               makeStatusBar: { StatusBarController(actionHandler: $0, localizer: localizer) },
                               makePreferencesWindow: makePreferencesWindow)
     }

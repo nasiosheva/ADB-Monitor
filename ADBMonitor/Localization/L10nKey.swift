@@ -185,4 +185,24 @@ enum L10nKey: String, CaseIterable {
     case fastbootRebootConfirmTitle
     case fastbootRebootConfirmBody
     case fastbootRebootFailureTitle
+
+    // Copy device info
+    case menuCopyDeviceInfo
+
+    // Screen tools
+    case menuScreenshot
+    case screenshotFailureTitle
+    case menuRecordScreen
+    case menuStopRecording
+    case recordFailureTitle
+    case menuMirrorScreen
+    case mirrorFailureTitle
+    case errorToolNotFound
+
+    // Notifications
+    case notifyDeviceConnected
+    case notifyDeviceDisconnected
+    case prefsNotifications
+    case prefsNotifyDevices
+    case prefsNotifyNote
 }

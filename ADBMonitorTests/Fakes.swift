@@ -170,6 +170,8 @@ final class FakeStatusBar: StatusBarRendering {
     private(set) var renderedDetails: [[String: DeviceDetails]] = []
     func renderFastboot(_ devices: [FastbootDevice]) { renderedFastboot.append(devices) }
     func renderDetails(_ details: [String: DeviceDetails]) { renderedDetails.append(details) }
+    private(set) var renderedRecording: [Set<String>] = []
+    func renderRecording(_ serials: Set<String>) { renderedRecording.append(serials) }
 }
 
 @MainActor
@@ -179,7 +181,7 @@ final class FakePreferencesWindow: PreferencesPresenting {
 }
 
 @MainActor
-final class RecordingMenuHandler: StatusMenuActionHandling {
+final class RecordingMenuHandler: StatusMenuActionHandling, RecordingStateReporting {
     private(set) var refreshCount = 0
     private(set) var preferencesCount = 0
     private(set) var quitCount = 0
@@ -192,6 +194,15 @@ final class RecordingMenuHandler: StatusMenuActionHandling {
 
     private(set) var developerOptionsRequests: [ADBDevice] = []
     func statusMenu(didRequestOpenDeveloperOptionsOn device: ADBDevice) { developerOptionsRequests.append(device) }
+
+    // Screen
+    var onRecordingChange: ((Set<String>) -> Void)?
+    private(set) var recordingToggles: [ADBDevice] = []
+    func statusMenu(didRequestToggleRecordingOf device: ADBDevice) { recordingToggles.append(device) }
+    private(set) var screenshotRequests: [ADBDevice] = []
+    private(set) var mirrorRequests: [ADBDevice] = []
+    func statusMenu(didRequestScreenshotOf device: ADBDevice) { screenshotRequests.append(device) }
+    func statusMenu(didRequestMirror device: ADBDevice) { mirrorRequests.append(device) }
 
     // Tools
     private(set) var restartServerCount = 0
@@ -492,4 +503,122 @@ final class FakeDetailsTracker: DeviceDetailsTracking {
     var onChange: (([String: DeviceDetails]) -> Void)?
     private(set) var tracked: [[ADBDevice]] = []
     func track(devices: [ADBDevice]) { tracked.append(devices) }
+}
+
+// MARK: - Screen tools and notifications
+
+final class FakeScreenshotService: ScreenshotTaking {
+    private(set) var requests: [(serial: String, destination: URL)] = []
+    private var pending: [(Result<Void, ADBError>) -> Void] = []
+
+    func takeScreenshot(of serial: String,
+                        to destination: URL,
+                        completion: @escaping (Result<Void, ADBError>) -> Void) {
+        requests.append((serial, destination))
+        pending.append(completion)
+    }
+
+    func complete(_ result: Result<Void, ADBError>) { pending.removeFirst()(result) }
+}
+
+@MainActor
+final class FakeMirror: ScreenMirroring {
+    var result: Result<Void, ADBError> = .success(())
+    private(set) var serials: [String] = []
+
+    func mirror(serial: String, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        serials.append(serial)
+        completion(result)
+    }
+}
+
+@MainActor
+final class FakeFileRevealer: FileRevealing {
+    private(set) var revealed: [URL] = []
+    func reveal(_ url: URL) { revealed.append(url) }
+}
+
+@MainActor
+final class FakeRunningProcess: RunningProcess {
+    private(set) var interrupts = 0
+    private(set) var terminations = 0
+    func interrupt() { interrupts += 1 }
+    func terminate() { terminations += 1 }
+}
+
+@MainActor
+final class FakeProcessLauncher: ProcessLaunching {
+    struct Launch {
+        let executable: String
+        let arguments: [String]
+        let environment: [String: String]
+        let process: FakeRunningProcess
+        let onExit: @MainActor @Sendable (Int32, String) -> Void
+    }
+
+    private(set) var launches: [Launch] = []
+    /// When set, `launch` throws it instead of starting anything.
+    var error: Error?
+
+    func launch(executable: String,
+                arguments: [String],
+                environment: [String: String],
+                onExit: @escaping @MainActor @Sendable (Int32, String) -> Void) throws -> RunningProcess {
+        if let error = error { throw error }
+        let process = FakeRunningProcess()
+        launches.append(Launch(executable: executable, arguments: arguments, environment: environment,
+                               process: process, onExit: onExit))
+        return process
+    }
+}
+
+struct StubNotificationSettings: DeviceNotificationProviding {
+    var deviceNotificationsEnabled: Bool
+}
+
+@MainActor
+final class MutableNotificationSettings: DeviceNotificationProviding {
+    var deviceNotificationsEnabled: Bool
+    init(_ enabled: Bool) { deviceNotificationsEnabled = enabled }
+}
+
+@MainActor
+final class FakeDeviceNotifier: DeviceNotifying {
+    private(set) var prepareCount = 0
+    private(set) var notified: [DeviceChange] = []
+    func prepare() { prepareCount += 1 }
+    func notify(_ change: DeviceChange) { notified.append(change) }
+}
+
+@MainActor
+final class FakeChangeTracker: DeviceChangeTracking {
+    private(set) var tracked: [[ADBDevice]] = []
+    func track(devices: [ADBDevice]) { tracked.append(devices) }
+}
+
+@MainActor
+final class FakeRecorder: ScreenRecording {
+    private(set) var started: [(serial: String, destination: URL)] = []
+    private(set) var stopped: [String] = []
+    private var completions: [String: (Result<Void, ADBError>) -> Void] = [:]
+    /// When set, `start` fails right away with this error.
+    var startError: ADBError?
+
+    func isRecording(serial: String) -> Bool { completions[serial] != nil }
+
+    func start(serial: String, to destination: URL, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        if let error = startError {
+            completion(.failure(error))
+            return
+        }
+        started.append((serial, destination))
+        completions[serial] = completion
+    }
+
+    func stop(serial: String) { stopped.append(serial) }
+
+    /// Ends the recording like `ScrcpyRecorder` does when the process exits.
+    func finish(serial: String, _ result: Result<Void, ADBError>) {
+        completions.removeValue(forKey: serial)?(result)
+    }
 }

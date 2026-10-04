@@ -17,9 +17,11 @@ final class AppCoordinator: StatusMenuActionHandling {
     private let alerts: AlertPresenting
     private let wireless: WirelessActionHandling
     private let tools: ToolsActionHandling
+    private let screen: ScreenActionHandling & RecordingStateReporting
     private let settings: DeviceSettingsOpening
     private let localizer: Localizing
     private let detailsTracker: DeviceDetailsTracking
+    private let changeTracker: DeviceChangeTracking
     private let makeStatusBar: @MainActor (StatusMenuActionHandling) -> StatusBarRendering
     private let makePreferencesWindow: @MainActor () -> PreferencesPresenting
 
@@ -31,9 +33,11 @@ final class AppCoordinator: StatusMenuActionHandling {
          alerts: AlertPresenting,
          wireless: WirelessActionHandling,
          tools: ToolsActionHandling,
+         screen: ScreenActionHandling & RecordingStateReporting,
          settings: DeviceSettingsOpening,
          localizer: Localizing,
          detailsTracker: DeviceDetailsTracking,
+         changeTracker: DeviceChangeTracking,
          makeStatusBar: @escaping @MainActor (StatusMenuActionHandling) -> StatusBarRendering,
          makePreferencesWindow: @escaping @MainActor () -> PreferencesPresenting) {
         self.monitor = monitor
@@ -41,9 +45,11 @@ final class AppCoordinator: StatusMenuActionHandling {
         self.alerts = alerts
         self.wireless = wireless
         self.tools = tools
+        self.screen = screen
         self.settings = settings
         self.localizer = localizer
         self.detailsTracker = detailsTracker
+        self.changeTracker = changeTracker
         self.makeStatusBar = makeStatusBar
         self.makePreferencesWindow = makePreferencesWindow
     }
@@ -61,12 +67,16 @@ final class AppCoordinator: StatusMenuActionHandling {
         monitor.onFastbootChange = { [weak statusBar] devices in
             statusBar?.renderFastboot(devices)
         }
-        // The tracker decides by itself which devices need to be read again; it is told about every poll.
-        monitor.onPoll = { [weak detailsTracker] devices in
+        // The trackers decide by themselves what to do; they are told about every poll.
+        monitor.onPoll = { [weak detailsTracker, weak changeTracker] devices in
             detailsTracker?.track(devices: devices)
+            changeTracker?.track(devices: devices)
         }
         detailsTracker.onChange = { [weak statusBar] details in
             statusBar?.renderDetails(details)
+        }
+        screen.onRecordingChange = { [weak statusBar] serials in
+            statusBar?.renderRecording(serials)
         }
         monitor.start()
     }
@@ -133,6 +143,20 @@ final class AppCoordinator: StatusMenuActionHandling {
 
     func statusMenu(didRequestSwitchToWireless device: ADBDevice) {
         wireless.statusMenu(didRequestSwitchToWireless: device)
+    }
+
+    // MARK: - ScreenActionHandling (forwarded to ScreenCoordinator)
+
+    func statusMenu(didRequestScreenshotOf device: ADBDevice) {
+        screen.statusMenu(didRequestScreenshotOf: device)
+    }
+
+    func statusMenu(didRequestToggleRecordingOf device: ADBDevice) {
+        screen.statusMenu(didRequestToggleRecordingOf: device)
+    }
+
+    func statusMenu(didRequestMirror device: ADBDevice) {
+        screen.statusMenu(didRequestMirror: device)
     }
 
     // MARK: - ToolsActionHandling (forwarded to ToolsCoordinator)

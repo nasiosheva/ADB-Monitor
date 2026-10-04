@@ -40,6 +40,7 @@ extension Localizing {
     func message(for error: ADBError) -> String {
         switch error {
         case .notFound: return text(.errorAdbNotFound)
+        case .toolNotFound(let tool): return text(.errorToolNotFound, tool, tool)
         case .timedOut: return text(.errorTimedOut)
         case .launchFailed(let reason): return text(.errorLaunchFailed, reason)
         case .noWiFiAddress: return text(.errorNoWiFiAddress)

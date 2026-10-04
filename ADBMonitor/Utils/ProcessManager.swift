@@ -36,9 +36,6 @@ final class ProcessManager: ProcessRunning, @unchecked Sendable {  // only `let`
     /// Limit for waiting on EOF after the process exits; `adb` can leave a daemon child that holds the pipe.
     private static let drainTimeout: TimeInterval = 1
 
-    /// Extra directories for PATH, because a GUI app does not inherit PATH from the shell.
-    private static let extraSearchPaths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
-
     private let workQueue = DispatchQueue(label: "ADBMonitor.ProcessManager", qos: .utility, attributes: .concurrent)
     private let completionQueue: DispatchQueue
     private let fileManager: FileManager
@@ -101,17 +98,10 @@ final class ProcessManager: ProcessRunning, @unchecked Sendable {  // only `let`
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
-        process.environment = launchEnvironment()
+        process.environment = LaunchEnvironment.make()
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = stdout
         process.standardError = stderr
         return process
-    }
-
-    private func launchEnvironment() -> [String: String] {
-        var environment = ProcessInfo.processInfo.environment
-        let inheritedPath = environment["PATH"].map { [$0] } ?? []
-        environment["PATH"] = (inheritedPath + Self.extraSearchPaths).joined(separator: ":")
-        return environment
     }
 }

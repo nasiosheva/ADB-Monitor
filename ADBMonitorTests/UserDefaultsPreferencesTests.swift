@@ -34,24 +34,40 @@ final class UserDefaultsPreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.languagePreference, .system)
     }
 
+    func testDeviceNotificationsAreOffByDefaultAndRoundTrip() {
+        XCTAssertFalse(preferences.deviceNotificationsEnabled, "no permission prompt before the user asks")
+        preferences.save(adbPath: nil, refreshInterval: 3, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: true)
+        XCTAssertTrue(preferences.deviceNotificationsEnabled)
+        preferences.save(adbPath: nil, refreshInterval: 3, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: false)
+        XCTAssertFalse(preferences.deviceNotificationsEnabled)
+    }
+
     func testSaveTrimsPath() {
-        preferences.save(adbPath: "  /a/adb \n", refreshInterval: 3, language: .system, wirelessDiscovery: true)
+        preferences.save(adbPath: "  /a/adb \n", refreshInterval: 3, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: false)
         XCTAssertEqual(preferences.adbPath, "/a/adb")
     }
 
     func testBlankPathClearsTheStoredValue() {
-        preferences.save(adbPath: "/a/adb", refreshInterval: 3, language: .system, wirelessDiscovery: true)
-        preferences.save(adbPath: "   ", refreshInterval: 3, language: .system, wirelessDiscovery: true)
+        preferences.save(adbPath: "/a/adb", refreshInterval: 3, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: false)
+        preferences.save(adbPath: "   ", refreshInterval: 3, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: false)
         XCTAssertNil(preferences.adbPath)
         XCTAssertNil(defaults.string(forKey: "adbPath"))
     }
 
     func testRefreshIntervalIsClamped() {
-        preferences.save(adbPath: nil, refreshInterval: 999, language: .system, wirelessDiscovery: true)
+        preferences.save(adbPath: nil, refreshInterval: 999, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: false)
         XCTAssertEqual(preferences.refreshInterval, 60)
-        preferences.save(adbPath: nil, refreshInterval: 0.1, language: .system, wirelessDiscovery: true)
+        preferences.save(adbPath: nil, refreshInterval: 0.1, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: false)
         XCTAssertEqual(preferences.refreshInterval, 1)
-        preferences.save(adbPath: nil, refreshInterval: 7, language: .system, wirelessDiscovery: true)
+        preferences.save(adbPath: nil, refreshInterval: 7, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: false)
         XCTAssertEqual(preferences.refreshInterval, 7)
     }
 
@@ -62,10 +78,12 @@ final class UserDefaultsPreferencesTests: XCTestCase {
 
     func testLanguageRoundTripAndSystemRemovesTheKey() {
         for language in AppLanguage.allCases {
-            preferences.save(adbPath: nil, refreshInterval: 3, language: .explicit(language), wirelessDiscovery: true)
+            preferences.save(adbPath: nil, refreshInterval: 3, language: .explicit(language),
+                             wirelessDiscovery: true, deviceNotifications: false)
             XCTAssertEqual(preferences.languagePreference, .explicit(language))
         }
-        preferences.save(adbPath: nil, refreshInterval: 3, language: .system, wirelessDiscovery: true)
+        preferences.save(adbPath: nil, refreshInterval: 3, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: false)
         XCTAssertEqual(preferences.languagePreference, .system)
         XCTAssertNil(defaults.string(forKey: "language"))
     }
@@ -77,9 +95,11 @@ final class UserDefaultsPreferencesTests: XCTestCase {
 
     func testWirelessDiscoveryIsOnByDefaultAndPersists() {
         XCTAssertTrue(preferences.wirelessDiscoveryEnabled)
-        preferences.save(adbPath: nil, refreshInterval: 3, language: .system, wirelessDiscovery: false)
+        preferences.save(adbPath: nil, refreshInterval: 3, language: .system,
+                         wirelessDiscovery: false, deviceNotifications: false)
         XCTAssertFalse(preferences.wirelessDiscoveryEnabled)
-        preferences.save(adbPath: nil, refreshInterval: 3, language: .system, wirelessDiscovery: true)
+        preferences.save(adbPath: nil, refreshInterval: 3, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: false)
         XCTAssertTrue(preferences.wirelessDiscoveryEnabled)
     }
 
@@ -87,7 +107,8 @@ final class UserDefaultsPreferencesTests: XCTestCase {
         var count = 0
         let token = center.addObserver(forName: .preferencesDidChange, object: nil, queue: nil) { _ in count += 1 }
         defer { center.removeObserver(token) }
-        preferences.save(adbPath: nil, refreshInterval: 3, language: .system, wirelessDiscovery: true)
+        preferences.save(adbPath: nil, refreshInterval: 3, language: .system,
+                         wirelessDiscovery: true, deviceNotifications: false)
         XCTAssertEqual(count, 1)
     }
 }

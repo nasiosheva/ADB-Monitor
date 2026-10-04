@@ -27,11 +27,17 @@ protocol WirelessDiscoveryProviding {
     var wirelessDiscoveryEnabled: Bool { get }
 }
 
+protocol DeviceNotificationProviding {
+    /// Whether the user wants a notification when a device connects or disconnects. Default: off, so the app
+    /// does not ask for notification permission before the user has asked for notifications.
+    var deviceNotificationsEnabled: Bool { get }
+}
+
 protocol PreferencesStoring: ADBPathProviding, RefreshIntervalProviding, LanguageProviding,
-                             WirelessDiscoveryProviding {
+                             WirelessDiscoveryProviding, DeviceNotificationProviding {
     /// Saves the settings, then posts `.preferencesDidChange`.
     func save(adbPath: String?, refreshInterval: TimeInterval, language: LanguagePreference,
-              wirelessDiscovery: Bool)
+              wirelessDiscovery: Bool, deviceNotifications: Bool)
 }
 
 enum RefreshIntervalLimits {

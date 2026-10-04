@@ -10,6 +10,8 @@ import Foundation
 enum ADBError: Error, Equatable {
     /// `customPath` is set when the user configured a manual path that is not valid.
     case notFound(customPath: String?)
+    /// A helper tool other than adb (for example `scrcpy`) is not installed; carries its name.
+    case toolNotFound(String)
     case timedOut
     case launchFailed(String)
     /// The device has no Wi-Fi IPv4 address (it is not connected to Wi-Fi).

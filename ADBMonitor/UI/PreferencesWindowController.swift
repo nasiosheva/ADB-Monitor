@@ -14,7 +14,8 @@ protocol PreferencesPresenting: AnyObject {
     func present()
 }
 
-/// Preferences window: custom ADB path, refresh interval, language, and launch at login.
+/// Preferences window: custom ADB path, refresh interval, language, launch at login, Wi-Fi discovery, and
+/// device notifications.
 final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate, PreferencesPresenting {
 
     private let preferences: PreferencesStoring
@@ -28,6 +29,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     private let languageTitle = NSTextField(labelWithString: "")
     private let startupTitle = NSTextField(labelWithString: "")
     private let wirelessTitle = NSTextField(labelWithString: "")
+    private let notificationsTitle = NSTextField(labelWithString: "")
     private let chooseButton = NSButton(title: "", target: nil, action: nil)
     private let cancelButton = NSButton(title: "", target: nil, action: nil)
     private let saveButton = NSButton(title: "", target: nil, action: nil)
@@ -41,6 +43,8 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     private let launchNote = NSTextField(labelWithString: "")
     private let wirelessCheckbox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let wirelessNote = NSTextField(labelWithString: "")
+    private let notificationsCheckbox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let notificationsNote = NSTextField(labelWithString: "")
 
     init(preferences: PreferencesStoring,
          locator: ADBLocating,
@@ -51,7 +55,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         self.launchAtLogin = launchAtLogin
         self.l10n = localizer
 
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 340),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 390),
                               styleMask: [.titled, .closable],
                               backing: .buffered,
                               defer: false)
@@ -88,6 +92,8 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
             [NSGridCell.emptyContentView, makeLaunchNote()],
             [wirelessTitle, wirelessCheckbox],
             [NSGridCell.emptyContentView, makeWirelessNote()],
+            [notificationsTitle, notificationsCheckbox],
+            [NSGridCell.emptyContentView, makeNotificationsNote()],
         ])
         form.rowSpacing = 10
         form.columnSpacing = 10
@@ -130,6 +136,13 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         wirelessNote.textColor = .secondaryLabelColor
         wirelessNote.lineBreakMode = .byTruncatingTail
         return wirelessNote
+    }
+
+    private func makeNotificationsNote() -> NSView {
+        notificationsNote.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        notificationsNote.textColor = .secondaryLabelColor
+        notificationsNote.lineBreakMode = .byTruncatingTail
+        return notificationsNote
     }
 
     private func makeIntervalRow() -> NSView {
@@ -196,6 +209,9 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         wirelessTitle.stringValue = l10n.text(.prefsWireless)
         wirelessCheckbox.title = l10n.text(.prefsWirelessDiscovery)
         wirelessNote.stringValue = l10n.text(.prefsWirelessNote)
+        notificationsTitle.stringValue = l10n.text(.prefsNotifications)
+        notificationsCheckbox.title = l10n.text(.prefsNotifyDevices)
+        notificationsNote.stringValue = l10n.text(.prefsNotifyNote)
     }
 
     private func rebuildLanguageMenu(selecting preference: LanguagePreference) {
@@ -227,6 +243,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         updateDetectedLabel()
         rebuildLanguageMenu(selecting: preferences.languagePreference)
         wirelessCheckbox.state = preferences.wirelessDiscoveryEnabled ? .on : .off
+        notificationsCheckbox.state = preferences.deviceNotificationsEnabled ? .on : .off
         loadLaunchAtLogin()
     }
 
@@ -305,7 +322,8 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         preferences.save(adbPath: pathField.stringValue,
                          refreshInterval: intervalStepper.doubleValue,
                          language: selectedLanguagePreference(),
-                         wirelessDiscovery: wirelessCheckbox.state == .on)
+                         wirelessDiscovery: wirelessCheckbox.state == .on,
+                         deviceNotifications: notificationsCheckbox.state == .on)
 
         if let error = applyLaunchAtLogin() {
             // The other settings are already saved; the window stays open so the user sees this failure.

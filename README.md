@@ -31,7 +31,11 @@ ADB Monitor is a macOS menu bar app (pure AppKit, no Dock icon). It runs `adb de
 - **Menu bar icon with a device count**, for example the ADB document icon followed by `2`.
 - **Device list** with model name, serial, and connection state, marked with a colored dot (green, orange, red, gray).
 - **Per-device detail submenu**: state, serial, connection type (USB, Wi-Fi, Emulator), model, product, device name, and transport ID.
-- **Copy** the serial, an `adb -s <serial>` command prefix, or (for a Wi-Fi device) its `host:port` address with one click.
+- **Copy** the serial, an `adb -s <serial>` command prefix, all device details as text (for a bug report), or (for a Wi-Fi device) its `host:port` address with one click.
+- **Take Screenshot** of a device screen into a PNG on your Desktop.
+- **Record Screen** to a small MP4 (about 480p, at most 5 minutes) with [`scrcpy`](https://github.com/Genymobile/scrcpy), with a Stop button.
+- **Mirror Screen** with [`scrcpy`](https://github.com/Genymobile/scrcpy), when it is installed.
+- **Notifications** when a device connects or disconnects (optional, off by default).
 - **Android version and battery level** in the device submenu, read once per device and refreshed at most every 60 seconds.
 - **Fastboot devices**: phones in bootloader mode are listed in their own section (needs `fastboot`), with copy serial and a reboot action.
 - **Reboot to Recovery, Bootloader, or Download Mode** from the device submenu.
@@ -125,8 +129,12 @@ Battery: 87%
 ─────────────────────────────
 Copy Serial Number
 Copy ADB Command Prefix
+Copy Device Info
 Switch to Wi-Fi
 Open Developer Options
+Take Screenshot
+Record Screen (480p)
+Mirror Screen (scrcpy)
 Restart Device…
 Shut Down Device…
 ─────────────────────────────
@@ -154,6 +162,48 @@ All of these always ask for confirmation before they run.
 | Reboot to Download Mode | `adb -s <serial> reboot download` | Connected |
 
 A menu item is grayed out when the action is not available for the device's current state. Download Mode is a Samsung feature (the screen Odin and Heimdall use); other vendors ignore or reject it, and then the error from `adb` is shown. After a shutdown, the device **cannot be powered back on from the Mac**. Some vendors and ROMs reject the shell power-off command (`reboot -p`). If it fails, the error message from `adb` is shown in a dialog.
+
+### Take Screenshot
+
+Runs `adb -s <serial> shell screencap -p`, pulls the PNG to your **Desktop** as `ADB Screenshot <model> 2026-10-04 at 18.30.12.png`, removes the temporary file from the device, and shows the file in Finder. It needs no confirmation and is available for devices in the Connected state. A second click on the same device while a screenshot is running is ignored. The first time, macOS asks whether ADB Monitor may access your Desktop folder. Apps that block screen capture (some banking and video apps) give a black image; that is Android's choice, not an error.
+
+### Record Screen
+
+Runs `scrcpy` in recording mode, with no window and no audio on the Mac:
+
+```
+scrcpy -s <serial> --record=<file>.mp4 --record-format=mp4 --max-size=854 --video-bit-rate=1M --max-fps=24 --time-limit=300 --no-audio --no-playback
+```
+
+| Setting | Value | Why |
+|---|---|---|
+| Container and codec | MP4, H.264 | Plays on macOS, Windows, Android, iPhone, and in browsers |
+| Size | longest side 854 px, aspect ratio kept | "480p" for a phone held upright is 480 × 854. (`--max-size=480` would limit the *longest* side and give a tiny 222 × 480 picture on a tall phone.) |
+| Bitrate and frame rate | 1 Mbps, 24 fps | Small file: roughly 7 MB per minute, about 37 MB for the full 5 minutes (an estimate, it depends on what is on screen) |
+| Length | at most 300 s | `scrcpy` stops by itself and closes the file |
+
+The menu item changes to **Stop Recording** while a device is being recorded. Stopping sends `scrcpy` the same signal as Ctrl+C (SIGINT), which lets it finish the file; if it has not exited after 5 seconds it is terminated. When the recording ends, for any reason, the file `ADB Recording <model> <date> at <time>.mp4` is shown in Finder on your Desktop. Several devices can be recorded at the same time. If you quit ADB Monitor during a recording, `scrcpy` keeps running and finishes the file when it reaches the time limit. A recording of a screen that does not change can be shorter than the time that passed, because Android only produces a frame when something changes. As with screenshots, apps that block screen capture give a black picture, and the profile (size, bitrate, frame rate, limit) is one struct in the code, not a setting.
+
+### Mirror Screen
+
+Starts `scrcpy -s <serial>`, which opens its own window. `scrcpy` is found like `adb` (`PATH`, Homebrew, and so on); install it with `brew install scrcpy`. The app passes the `adb` it uses to `scrcpy` through the `ADB` environment variable, so a custom ADB path in Preferences is respected. If `scrcpy` quits within the first three seconds, its `ERROR` lines are shown in a dialog. A device that already has a mirror window is not started a second time. Closing the window ends `scrcpy`; quitting ADB Monitor leaves open windows alone.
+
+### Copy Device Info
+
+Copies the rows of the detail submenu as plain text, in the language of the menu:
+
+```
+Status: Connected
+Serial: 94GAY0NRYY
+Connection: USB
+Model: Pixel 3a
+Android version: 12
+Battery: 87%
+```
+
+### Notifications
+
+Turn on **Notify when a device connects or disconnects** in Preferences. macOS asks for permission the first time. The notification names the device, for example "Device connected — Pixel 3a (94GAY0NRYY)". Devices that are already connected when the app starts, or when you turn the setting on, are not announced. A device must be missing from two polls in a row before it counts as disconnected, so an adb server restart or a flaky Wi-Fi link does not produce a false "disconnected" and "connected" pair. A change of state alone (for example Unauthorized → Connected) is not announced.
 
 ### Restart ADB Server
 
@@ -214,6 +264,7 @@ Open it from **Preferences…** in the menu (⌘,).
 | **Refresh interval** | Delay between polls, 1–60 seconds (default 3). |
 | **Language** | **System default** or one of the five languages. Applied on **Save**; the menu and dialogs switch immediately, with no restart. |
 | **Detect devices on Wi-Fi** | Looks for devices on the network with mDNS on every poll (default on). Manual connect and pair are always available. |
+| **Notifications** | Notify when a device connects or disconnects (default off). macOS asks for permission when you save with this on. |
 | **Launch at login** | Registers the app as a login item (macOS 13+). On macOS 12 the checkbox is disabled with a hint. If macOS asks for approval, the hint points to **System Settings → General → Login Items**. |
 
 Changes take effect right after **Save**: the app refreshes immediately with the new settings.
@@ -292,17 +343,18 @@ flowchart LR
 ```
 ADBMonitor/
 ├── App/            AppDelegate (entry point + composition root), AppCoordinator, WirelessCoordinator, ToolsCoordinator,
-│                   MainMenuBuilder
+│                   ScreenCoordinator, MainMenuBuilder
 ├── Models/         ADBDevice, ADBStatus, ADBError, PowerAction, WirelessService, WirelessAddress, DeviceDetails,
-│                   FastbootDevice
+│                   FastbootDevice, DeviceChange
 ├── Services/       ADBService (+ Wireless, Details, Server), FastbootService, ADBLocator, DeviceListParser,
 │                   WirelessServiceParser, WiFiAddressParser, DeviceDetailsParser, FastbootDeviceParser,
-│                   DeviceDetailsTracker, DeviceMonitor, WirelessSwitcher, Scheduler, LaunchAtLogin
+│                   DeviceDetailsTracker, DeviceChangeDetector, DeviceChangeNotifier, ScrcpyMirror, ScrcpyRecorder, DeviceMonitor, WirelessSwitcher, Scheduler, LaunchAtLogin
 ├── Localization/   AppLanguage, L10nKey, Localizer, one Translations+<Language>.swift per language
 ├── Preferences/    Preference protocols, UserDefaultsPreferences
 ├── UI/             StatusBarController, StatusMenuBuilder, StatusButtonPresenter,
-│                   AlertPresenter, WirelessPrompter, PreferencesWindowController, DeviceStateStyle, Clipboard
-├── Utils/          ProcessManager (+ ProcessSupport), UncheckedSendable, Foundation helpers
+│                   AlertPresenter, WirelessPrompter, PreferencesWindowController, DeviceStateStyle, Clipboard, FileRevealer,
+│                   UserNotificationNotifier
+├── Utils/          ProcessManager, ProcessLauncher (+ ProcessSupport), UncheckedSendable, Foundation helpers
 └── Assets.xcassets/  AppIcon, MenuBarIcon
 ```
 
@@ -317,6 +369,9 @@ ADBMonitor/
 | `WirelessSwitcher` | USB → Wi-Fi: find the IP, `adb tcpip`, then `adb connect` with retries |
 | `ToolsCoordinator` | Restart ADB server and reboot of a fastboot device: confirm, run, refresh, show an error |
 | `DeviceDetailsTracker` | Reads the Android version and battery of each connected device once, then at most every 60 seconds; driven by `DeviceMonitor.onPoll` |
+| `ScreenCoordinator` | Screenshot (names the file, shows it in Finder) and screen mirroring; errors are shown in a dialog |
+| `ScrcpyMirror` / `ScrcpyRecorder` / `ProcessLauncher` | Start `scrcpy` for a device. The mirror reports whether it stayed up; the recorder tracks each recording until it ends and can stop it. `ProcessLauncher` runs a tool that keeps running, reports its exit, and can send it SIGINT or SIGTERM |
+| `DeviceChangeDetector` / `DeviceChangeNotifier` | Find devices that came or went between polls (with a two-poll delay for disconnects) and turn them into notifications |
 | `FastbootService` | Runs `fastboot devices` and `fastboot -s <serial> reboot`; found with its own `ADBLocator` |
 | `StatusBarController` / `StatusMenuBuilder` | Own the `NSStatusItem` and build the `NSMenu` dropdown |
 | `Localizer` | Resolves the effective language and returns text for an `L10nKey`; announces language changes |
@@ -330,6 +385,8 @@ ADBMonitor/
 - **The menu is refilled in place.** The same `NSMenu` is emptied and filled again instead of being replaced, so an open menu does not close.
 - **Wi-Fi results are read from text, not exit codes.** `adb connect` exits 0 even when it fails (for example "failed to connect to … No route to host"), so success means the output starts with "connected to" or "already connected to". `adb pair` is checked for "Successfully paired".
 - **`adb disconnect` is never run without a serial.** Without arguments it disconnects every device, so the service refuses an empty serial.
+- **Mirroring is a long-running process, not a command.** `ProcessManager` waits for a process to end and has a timeout, which is right for `adb` but wrong for a window that stays open for hours. `ProcessLauncher` starts the process, drains its output (so it never blocks on a full pipe), keeps only the last 4 KB of its error output, and reports the exit.
+- **Screenshots do not use `exec-out`.** `adb exec-out screencap -p` would avoid a temporary file on the device, but the process layer reads output as text and would corrupt the PNG bytes. The app uses `screencap -p <file>`, `pull`, `rm -f` instead.
 - **Fastboot and details never block or break the device list.** `fastboot devices` runs inside the same poll (after discovery), so polls still never overlap, and its failure means an empty list. The battery and version are read by `DeviceDetailsTracker` outside the poll chain, one device at a time, and a device that cannot answer is not asked again before the interval passes.
 - **Discovery never blocks the device list.** It runs after `adb devices` in the same poll, so polls still never overlap. A discovery failure just means an empty Wi-Fi list, and services that already appear as connected devices are filtered out.
 - **No hanging `adb` processes.** After the process exits, the app waits for pipe EOF for at most 1 second, with one shared deadline for stdout and stderr, because `adb` can leave a daemon child that still holds the pipe.
@@ -373,7 +430,7 @@ The project uses `PBXFileSystemSynchronizedRootGroup`, so new Swift files under 
 
 ### Testing
 
-The `ADBMonitorTests` target contains 360+ XCTest unit tests. Run them with **⌘U** in Xcode, or:
+The `ADBMonitorTests` target contains 460+ XCTest unit tests. Run them with **⌘U** in Xcode, or:
 
 ```sh
 xcodebuild test -project ADBMonitor.xcodeproj -scheme ADBMonitor -destination 'platform=macOS'
@@ -387,6 +444,7 @@ Tests use fakes for every protocol boundary (`ProcessRunning`, `ADBLocating`, `A
 | `ADBLocator` | Custom path rules, no silent fallback, `PATH`, well-known paths, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, home SDK, search order |
 | `ADBService` | adb arguments for restart and shut down, error mapping, stderr handling |
 | `DeviceMonitor` | No overlapping polls, queued refresh, change-only notifications, `stop` behavior |
+| Screen tools and notifications | `DeviceChangeDetector` (baseline, two-poll disconnect, order), `DeviceChangeNotifier` (disabled/enabled, permission request), screenshot command sequence and failure cleanup, `ScrcpyMirror` (startup, early failure, duplicates, real error output), `ScrcpyRecorder` (profile arguments, stop, forced stop, end of recording), `ProcessLauncher` with real processes (including SIGINT), `ScreenCoordinator` (file names, Finder, errors), menu items |
 | Tools and details | Boot-mode arguments and availability, `DeviceDetailsParser` (real Samsung output), `DeviceDetailsTracker` (interval, in-flight, failures, vanished devices), `FastbootDeviceParser`, `FastbootService`, restart-server sequence, `ToolsCoordinator` order of events, menu items and clipboard copies |
 | `ProcessManager` | Output capture, 3 MB output, timeout, missing executable, inherited pipe, completion queue |
 | Preferences, localization | Defaults, trimming, clamping, notifications, completeness of all five translation tables, placeholder consistency, language resolution |
@@ -445,6 +503,15 @@ Two different `adb` versions are running at the same time. Run `adb kill-server`
 **Restart works but Shut Down fails.**
 Some vendors and ROMs reject `reboot -p` from the shell without root. The error is shown in a dialog. Power the device off manually.
 
+**"Mirror Screen" or "Record Screen" says scrcpy was not found.**
+Install it with `brew install scrcpy`. It is searched for on the `PATH`, in `/opt/homebrew/bin`, `/usr/local/bin`, and `/usr/bin`.
+
+**No notifications appear.**
+Check that **Notify when a device connects or disconnects** is on in Preferences and that ADB Monitor is allowed to send notifications in **System Settings → Notifications**. Devices that were already connected are never announced.
+
+**A recording stopped by itself, or the MP4 will not play.**
+It stops after 5 minutes on purpose. If `scrcpy` failed, its `ERROR` lines are shown in a dialog (for example when the phone was unplugged); a file that was cut off that way may be unplayable.
+
 **A phone in bootloader mode is not listed.**
 Install `fastboot` (it ships with `android-platform-tools`) and make sure it is on the `PATH` or in the Android SDK `platform-tools` folder. Check with `fastboot devices` in a terminal.
 
@@ -478,13 +545,16 @@ Run **Refresh**. If it stays offline, choose **Disconnect** and connect again.
 - Wi-Fi debugging supports IPv4 only. "Switch to Wi-Fi" leaves the phone in TCP mode until it reboots.
 - Pairing with Wireless debugging (Android 11+) and discovery of an advertised Wireless debugging service have only been checked against recorded adb output and fakes, not on a phone with Wireless debugging turned on.
 - Reboot to Download Mode, and everything that involves a device in fastboot mode, has only been checked against recorded output and fakes, not on a real device. Reboot to Recovery and Bootloader are plain `adb reboot <mode>`.
+- Screen recording, screenshots, screen mirroring, and notifications have only been checked against fakes, real helper processes, and a real `scrcpy` error; screenshot, recording, and mirroring were tried on a Pixel 3a (Android 12) over USB, but not on other phones, over Wi-Fi, or with a 5-minute recording, and no notification was shown on screen yet.
+- Screenshots always go to the Desktop (there is no setting for the folder), and mirroring needs `scrcpy` to be installed.
 - Fastboot support is limited to listing devices, copying the serial, and a normal reboot. Flashing and unlocking are not offered on purpose.
 - Translations are AI-written and unreviewed; Cantonese and Batak Toba are drafts (see [Languages](#languages)).
 - Chinese is Traditional only; there is no Simplified Chinese table yet.
 
 ## Privacy and security
 
-- The app makes no network connections of its own and sends no telemetry. The only thing it does is run the local `adb`. Wi-Fi discovery and connections are done by `adb` on your local network only, and discovery can be turned off in Preferences.
+- Screenshots are saved only on your Mac (the Desktop), and the temporary copy on the device is removed again. Notifications are local macOS notifications.
+- The app makes no network connections of its own and sends no telemetry. The only thing it does is run local tools (`adb`, `fastboot`, and `scrcpy` when you ask for mirroring). Wi-Fi discovery and connections are done by `adb` on your local network only, and discovery can be turned off in Preferences.
 - Settings are stored locally in `UserDefaults`.
 - Because the app is not sandboxed, it can run any binary you point it to in **ADB path**. Only enter an `adb` you trust.
 - Restart, Shut Down, the reboot modes, Restart ADB Server, and the fastboot reboot send commands to real devices or to the shared adb server. Every one of them asks for confirmation first. The app never flashes, unlocks, or wipes a device.

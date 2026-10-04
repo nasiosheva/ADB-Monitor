@@ -36,11 +36,13 @@ final class StatusMenuBuilderTests: XCTestCase {
                       wireless: [WirelessService] = [],
                       fastboot: [FastbootDevice] = [],
                       details: [String: DeviceDetails] = [:],
+                      recording: Set<String> = [],
                       language: AppLanguage = .english) -> NSMenu {
         let menu = NSMenu()
         let builder = makeBuilder(language)
         builders.append(builder)
-        builder.populate(menu, for: status, wireless: wireless, fastboot: fastboot, details: details)
+        builder.populate(menu, for: status, wireless: wireless, fastboot: fastboot, details: details,
+                         recording: recording)
         return menu
     }
 
@@ -139,9 +141,9 @@ final class StatusMenuBuilderTests: XCTestCase {
         XCTAssertEqual(try submenuTitles(of: .devices([Sample.device("SER1")])),
                        ["Status: Connected", "Serial: SER1", "Connection: USB", "Model: Pixel 3a",
                         "Product: sargo", "Device: sargo", "Transport ID: 2",
-                        "", "Copy Serial Number", "Copy ADB Command Prefix", "Switch to Wi-Fi",
-                        "Open Developer Options",
-                        "Restart Device…", "Shut Down Device…",
+                        "", "Copy Serial Number", "Copy ADB Command Prefix", "Copy Device Info", "Switch to Wi-Fi",
+                        "Open Developer Options", "Take Screenshot", "Record Screen (480p)",
+                        "Mirror Screen (scrcpy)", "Restart Device…", "Shut Down Device…",
                         "", "Reboot to Recovery…", "Reboot to Bootloader…", "Reboot to Download Mode…"])
     }
 
@@ -365,6 +367,121 @@ final class StatusMenuBuilderTests: XCTestCase {
         XCTAssertTrue(sub.contains("Baterai: 5%"))
         XCTAssertTrue(sub.contains("Salin Awalan Perintah ADB"))
         XCTAssertTrue(sub.contains("Reboot ke Recovery…"))
+    }
+
+    // MARK: Copy device info
+
+    func testCopyDeviceInfoCopiesEveryDetailRowAsText() throws {
+        let m = menu(for: .devices([Sample.device("SER9")]),
+                     details: ["SER9": DeviceDetails(androidVersion: "12", batteryLevel: 87)])
+        let sub = try XCTUnwrap(m.items[2].submenu)
+        try click(try item("Copy Device Info", in: sub))
+        XCTAssertEqual(clipboard.copied, ["""
+            Status: Connected
+            Serial: SER9
+            Connection: USB
+            Model: Pixel 3a
+            Product: sargo
+            Device: sargo
+            Transport ID: 2
+            Android version: 12
+            Battery: 87%
+            """])
+    }
+
+    func testCopyDeviceInfoLeavesOutRowsThatAreUnknown() throws {
+        let bare = ADBDevice(serial: "S", state: .offline, model: nil, product: nil, deviceName: nil,
+                             transportID: nil, usbPath: nil)
+        let sub = try XCTUnwrap(menu(for: .devices([bare])).items[2].submenu)
+        try click(try item("Copy Device Info", in: sub))
+        XCTAssertEqual(clipboard.copied, ["Status: Offline\nSerial: S\nConnection: Unknown"])
+    }
+
+    // MARK: Screen tools
+
+    func testScreenItemsFollowDeveloperOptions() throws {
+        let sub = try XCTUnwrap(menu(for: .devices([Sample.device()])).items[2].submenu)
+        let rows = titles(sub)
+        let developer = try XCTUnwrap(rows.firstIndex(of: "Open Developer Options"))
+        XCTAssertEqual(Array(rows[developer...].prefix(5)),
+                       ["Open Developer Options", "Take Screenshot", "Record Screen (480p)",
+                        "Mirror Screen (scrcpy)", "Restart Device…"])
+    }
+
+    func testScreenItemsAreOnlyEnabledForAConnectedDevice() throws {
+        func enabled(_ state: ADBDevice.State) throws -> [Bool] {
+            let sub = try XCTUnwrap(menu(for: .devices([Sample.device(state: state)])).items[2].submenu)
+            return try ["Take Screenshot", "Mirror Screen (scrcpy)"].map { try item($0, in: sub).isEnabled }
+        }
+        XCTAssertEqual(try enabled(.device), [true, true])
+        XCTAssertEqual(try enabled(.recovery), [false, false])
+        XCTAssertEqual(try enabled(.offline), [false, false])
+        XCTAssertEqual(try enabled(.unauthorized), [false, false])
+    }
+
+    func testScreenItemsSendTheDevice() throws {
+        let device = Sample.device("SER9")
+        let sub = try XCTUnwrap(menu(for: .devices([device])).items[2].submenu)
+        try click(try item("Take Screenshot", in: sub))
+        try click(try item("Mirror Screen (scrcpy)", in: sub))
+        XCTAssertEqual(handler.screenshotRequests, [device])
+        XCTAssertEqual(handler.mirrorRequests, [device])
+    }
+
+    // MARK: Record screen
+
+    func testRecordItemTogglesBetweenRecordAndStop() throws {
+        let device = Sample.device("SER9")
+        let idle = try XCTUnwrap(menu(for: .devices([device])).items[2].submenu)
+        XCTAssertTrue(titles(idle).contains("Record Screen (480p)"))
+        XCTAssertFalse(titles(idle).contains("Stop Recording"))
+
+        let busy = try XCTUnwrap(menu(for: .devices([device]), recording: ["SER9"]).items[2].submenu)
+        XCTAssertTrue(titles(busy).contains("Stop Recording"))
+        XCTAssertFalse(titles(busy).contains("Record Screen (480p)"))
+    }
+
+    func testOnlyTheRecordingDeviceShowsStop() throws {
+        let m = menu(for: .devices([Sample.device("A"), Sample.device("B")]), recording: ["B"])
+        XCTAssertTrue(titles(try XCTUnwrap(m.items[2].submenu)).contains("Record Screen (480p)"))
+        XCTAssertTrue(titles(try XCTUnwrap(m.items[3].submenu)).contains("Stop Recording"))
+    }
+
+    func testRecordItemIsOnlyEnabledForAConnectedDevice() throws {
+        func enabled(_ state: ADBDevice.State, recording: Set<String> = []) throws -> Bool {
+            let m = menu(for: .devices([Sample.device("S", state: state)]), recording: recording)
+            let sub = try XCTUnwrap(m.items[2].submenu)
+            return try item(recording.isEmpty ? "Record Screen (480p)" : "Stop Recording", in: sub).isEnabled
+        }
+        XCTAssertTrue(try enabled(.device))
+        XCTAssertFalse(try enabled(.offline))
+        XCTAssertFalse(try enabled(.unauthorized))
+        XCTAssertTrue(try enabled(.offline, recording: ["S"]), "a running recording can always be stopped")
+    }
+
+    func testRecordAndStopBothSendTheToggleRequest() throws {
+        let device = Sample.device("SER9")
+        let idle = try XCTUnwrap(menu(for: .devices([device])).items[2].submenu)
+        try click(try item("Record Screen (480p)", in: idle))
+        let busy = try XCTUnwrap(menu(for: .devices([device]), recording: ["SER9"]).items[2].submenu)
+        try click(try item("Stop Recording", in: busy))
+        XCTAssertEqual(handler.recordingToggles, [device, device])
+    }
+
+    func testRecordItemsFollowTheSelectedLanguage() throws {
+        let sub = try XCTUnwrap(menu(for: .devices([Sample.device("A")]), language: .indonesian).items[2].submenu)
+        XCTAssertTrue(titles(sub).contains("Rekam Layar (480p)"))
+        let busy = try XCTUnwrap(menu(for: .devices([Sample.device("A")]), recording: ["A"], language: .indonesian)
+            .items[2].submenu)
+        XCTAssertTrue(titles(busy).contains("Hentikan Perekaman"))
+    }
+
+    func testScreenAndCopyItemsFollowTheSelectedLanguage() throws {
+        let m = menu(for: .devices([Sample.device("AAA")]), language: .indonesian)
+        let sub = titles(try XCTUnwrap(m.items[2].submenu))
+        XCTAssertTrue(sub.contains("Ambil Tangkapan Layar"))
+        XCTAssertTrue(sub.contains("Cerminkan Layar (scrcpy)"))
+        XCTAssertTrue(sub.contains("Salin Info Perangkat"))
     }
 
     // MARK: Other behavior

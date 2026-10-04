@@ -18,6 +18,8 @@ protocol StatusBarRendering: AnyObject {
     func renderFastboot(_ devices: [FastbootDevice])
     /// Android version and battery of connected devices, keyed by serial.
     func renderDetails(_ details: [String: DeviceDetails])
+    /// Serials of the devices whose screen is being recorded.
+    func renderRecording(_ serials: Set<String>)
 }
 
 /// Owns the `NSStatusItem` in the menu bar and keeps the button and dropdown in sync with `ADBStatus`.
@@ -32,6 +34,7 @@ final class StatusBarController: StatusBarRendering {
     private var lastWireless: [WirelessService] = []
     private var lastFastboot: [FastbootDevice] = []
     private var lastDetails: [String: DeviceDetails] = [:]
+    private var lastRecording: Set<String> = []
 
     init(actionHandler: StatusMenuActionHandling, localizer: Localizing) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -74,9 +77,14 @@ final class StatusBarController: StatusBarRendering {
         rebuildMenu()
     }
 
+    func renderRecording(_ serials: Set<String>) {
+        lastRecording = serials
+        rebuildMenu()
+    }
+
     private func rebuildMenu() {
         menuBuilder.populate(menu, for: lastStatus, wireless: lastWireless, fastboot: lastFastboot,
-                             details: lastDetails)
+                             details: lastDetails, recording: lastRecording)
     }
 
     /// The language changed: rebuild the menu from the last status without waiting for the next poll.

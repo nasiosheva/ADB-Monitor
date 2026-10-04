@@ -31,9 +31,26 @@ protocol ToolsActionHandling: AnyObject {
     func statusMenu(didRequestRebootFastbootDevice device: FastbootDevice)
 }
 
+/// Screen actions for a connected device.
+@MainActor
+protocol ScreenActionHandling: AnyObject {
+    /// Captures the screen into a PNG file on the Mac.
+    func statusMenu(didRequestScreenshotOf device: ADBDevice)
+    /// Starts recording the screen into an MP4 file, or stops the recording that is running.
+    func statusMenu(didRequestToggleRecordingOf device: ADBDevice)
+    /// Opens a live view of the screen.
+    func statusMenu(didRequestMirror device: ADBDevice)
+}
+
+/// Tells the menu which devices are being recorded, so it can offer "Stop Recording" for them.
+@MainActor
+protocol RecordingStateReporting: AnyObject {
+    var onRecordingChange: ((Set<String>) -> Void)? { get set }
+}
+
 /// Actions the user can request from the dropdown menu.
 @MainActor
-protocol StatusMenuActionHandling: WirelessActionHandling, ToolsActionHandling {
+protocol StatusMenuActionHandling: WirelessActionHandling, ToolsActionHandling, ScreenActionHandling {
     func statusMenuDidRequestRefresh()
     func statusMenuDidRequestPreferences()
     func statusMenuDidRequestQuit()
@@ -64,14 +81,17 @@ final class StatusMenuBuilder: NSObject {
 
     /// Refills the same menu (instead of creating a new one) so a menu that is open does not close.
     /// `wireless` holds Wi-Fi services that were found but are not connected yet, `fastboot` the devices in
-    /// fastboot mode, and `details` the Android version and battery of connected devices keyed by serial.
+    /// fastboot mode, `details` the Android version and battery of connected devices keyed by serial, and
+    /// `recording` the serials whose screen is being recorded.
     func populate(_ menu: NSMenu,
                   for status: ADBStatus?,
                   wireless: [WirelessService] = [],
                   fastboot: [FastbootDevice] = [],
-                  details: [String: DeviceDetails] = [:]) {
+                  details: [String: DeviceDetails] = [:],
+                  recording: Set<String> = []) {
         menu.removeAllItems()
-        let items = statusItems(for: status, wireless: wireless, fastboot: fastboot, details: details)
+        let items = statusItems(for: status, wireless: wireless, fastboot: fastboot, details: details,
+                                recording: recording)
             + [.separator()] + commandItems(for: status)
         items.forEach(menu.addItem)
     }
@@ -81,12 +101,14 @@ final class StatusMenuBuilder: NSObject {
     private func statusItems(for status: ADBStatus?,
                              wireless: [WirelessService],
                              fastboot: [FastbootDevice],
-                             details: [String: DeviceDetails]) -> [NSMenuItem] {
+                             details: [String: DeviceDetails],
+                             recording: Set<String>) -> [NSMenuItem] {
         guard let status = status else { return [.info(l10n.text(.menuChecking))] }
 
         switch status {
         case .devices(let devices):
-            return deviceListItems(for: devices, details: details) + fastbootItems(for: fastboot)
+            return deviceListItems(for: devices, details: details, recording: recording)
+                + fastbootItems(for: fastboot)
                 + wirelessItems(for: wireless) + wirelessCommandItems()
         case .adbNotFound(let customPath):
             return adbNotFoundItems(customPath: customPath)
@@ -95,9 +117,13 @@ final class StatusMenuBuilder: NSObject {
         }
     }
 
-    private func deviceListItems(for devices: [ADBDevice], details: [String: DeviceDetails]) -> [NSMenuItem] {
+    private func deviceListItems(for devices: [ADBDevice],
+                                 details: [String: DeviceDetails],
+                                 recording: Set<String>) -> [NSMenuItem] {
         guard !devices.isEmpty else { return [.info(l10n.text(.menuNoDevices))] }
-        let items = devices.map { deviceItem(for: $0, details: details[$0.serial]) }
+        let items = devices.map {
+            deviceItem(for: $0, details: details[$0.serial], isRecording: recording.contains($0.serial))
+        }
         return [.info(l10n.text(.menuDevicesHeader, String(devices.count))), .separator()] + items
     }
 
@@ -178,27 +204,27 @@ final class StatusMenuBuilder: NSObject {
 
     // MARK: - Device item
 
-    private func deviceItem(for device: ADBDevice, details: DeviceDetails?) -> NSMenuItem {
+    private func deviceItem(for device: ADBDevice, details: DeviceDetails?, isRecording: Bool) -> NSMenuItem {
         let title = "\(device.displayName) (\(device.serial)) — \(l10n.label(for: device.state))"
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.attributedTitle = device.state.menuTitle(title)
         item.toolTip = device.serial
-        item.submenu = detailMenu(for: device, details: details)
+        item.submenu = detailMenu(for: device, details: details, isRecording: isRecording)
         return item
     }
 
-    private func detailMenu(for device: ADBDevice, details: DeviceDetails?) -> NSMenu {
+    private func detailMenu(for device: ADBDevice, details: DeviceDetails?, isRecording: Bool) -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        var items = detailRows(for: device, details: details).map {
-            NSMenuItem.info(l10n.text(.labelValue, $0.label, $0.value))
-        }
+        let rows = detailRows(for: device, details: details).map { l10n.text(.labelValue, $0.label, $0.value) }
+        var items = rows.map(NSMenuItem.info)
         if let hintKey = device.state.hintKey {
             items += [.separator(), .info(l10n.text(hintKey))]
         }
-        items += [.separator()] + copyItems(for: device)
-        items += wirelessDeviceItems(for: device) + [developerOptionsItem(for: device)] + powerItems(for: device)
+        items += [.separator()] + copyItems(for: device, infoText: rows.joined(separator: "\n"))
+        items += wirelessDeviceItems(for: device) + [developerOptionsItem(for: device)]
+        items += screenItems(for: device, isRecording: isRecording) + powerItems(for: device)
 
         items.forEach(menu.addItem)
         return menu
@@ -219,14 +245,16 @@ final class StatusMenuBuilder: NSObject {
         return rows.compactMap { key, value in value.map { (label: l10n.text(key), value: $0) } }
     }
 
-    /// Copy actions: the serial, an `adb -s <serial>` prefix, and (for Wi-Fi devices) the `host:port` address.
-    private func copyItems(for device: ADBDevice) -> [NSMenuItem] {
+    /// Copy actions: the serial, an `adb -s <serial>` prefix, (for Wi-Fi devices) the `host:port` address, and
+    /// all the detail rows as text, for a bug report.
+    private func copyItems(for device: ADBDevice, infoText: String) -> [NSMenuItem] {
         var items = [copyItem(.menuCopySerial, text: device.serial),
                      copyItem(.menuCopyAdbPrefix, text: "adb -s \(device.serial)")]
         // Only a plain `host:port` serial is an address; an mDNS serial (`adb-…._adb-tls-connect._tcp`) is not.
         if device.connection == .network, WirelessAddress.normalized(device.serial, requirePort: true) != nil {
             items.append(copyItem(.menuCopyAddress, text: device.serial))
         }
+        items.append(copyItem(.menuCopyDeviceInfo, text: infoText))
         return items
     }
 
@@ -242,6 +270,26 @@ final class StatusMenuBuilder: NSObject {
                                       representedObject: device)
         item.isEnabled = device.state == .device
         return item
+    }
+
+    /// Screenshot, recording, and mirroring need a device that is connected normally. A recording that is already
+    /// running can always be stopped, even if the device has gone offline in the meantime.
+    private func screenItems(for device: ADBDevice, isRecording: Bool) -> [NSMenuItem] {
+        let screenshot = NSMenuItem.command(l10n.text(.menuScreenshot),
+                                            action: #selector(screenshotSelected(_:)),
+                                            target: self,
+                                            representedObject: device)
+        let record = NSMenuItem.command(l10n.text(isRecording ? .menuStopRecording : .menuRecordScreen),
+                                        action: #selector(recordSelected(_:)),
+                                        target: self,
+                                        representedObject: device)
+        let mirror = NSMenuItem.command(l10n.text(.menuMirrorScreen),
+                                        action: #selector(mirrorSelected(_:)),
+                                        target: self,
+                                        representedObject: device)
+        [screenshot, mirror].forEach { $0.isEnabled = device.state == .device }
+        record.isEnabled = isRecording || device.state == .device
+        return [screenshot, record, mirror]
     }
 
     /// A Wi-Fi device can be disconnected; a ready USB device can be switched to Wi-Fi.
@@ -325,6 +373,21 @@ final class StatusMenuBuilder: NSObject {
     @objc private func developerOptionsSelected(_ sender: NSMenuItem) {
         guard let device = sender.representedObject as? ADBDevice else { return }
         handler?.statusMenu(didRequestOpenDeveloperOptionsOn: device)
+    }
+
+    @objc private func screenshotSelected(_ sender: NSMenuItem) {
+        guard let device = sender.representedObject as? ADBDevice else { return }
+        handler?.statusMenu(didRequestScreenshotOf: device)
+    }
+
+    @objc private func recordSelected(_ sender: NSMenuItem) {
+        guard let device = sender.representedObject as? ADBDevice else { return }
+        handler?.statusMenu(didRequestToggleRecordingOf: device)
+    }
+
+    @objc private func mirrorSelected(_ sender: NSMenuItem) {
+        guard let device = sender.representedObject as? ADBDevice else { return }
+        handler?.statusMenu(didRequestMirror: device)
     }
 
     @objc private func connectServiceSelected(_ sender: NSMenuItem) {
