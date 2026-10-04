@@ -34,6 +34,8 @@ enum L10nKey: String, CaseIterable {
 
     // Menu: perintah
     case menuCopySerial
+    case menuOpenDeveloperOptions
+    case developerOptionsFailureTitle
     case menuRefresh
     case menuPreferences
     case menuQuit
@@ -98,4 +100,41 @@ enum L10nKey: String, CaseIterable {
     case prefsLanguageSystem
     case prefsSave
     case prefsSelectAdbPanel
+
+    // Wi-Fi: menu
+    case menuWirelessHeader
+    case menuWirelessConnectItem
+    case menuWirelessPairItem
+    case menuConnectByAddress
+    case menuPairDevice
+    case menuDisconnect
+    case menuSwitchToWiFi
+
+    // Wi-Fi: dialog input
+    case connectPromptTitle
+    case connectPromptBody
+    case connectPromptPlaceholder
+    case connectPromptButton
+    case pairPromptTitle
+    case pairPromptBody
+    case pairAddressPlaceholder
+    case pairCodePlaceholder
+    case pairPromptButton
+
+    // Wi-Fi: hasil
+    case pairSuccessTitle
+    case pairSuccessBody
+    case wirelessConnectFailureTitle
+    case wirelessPairFailureTitle
+    case wirelessDisconnectFailureTitle
+    case wirelessSwitchFailureTitle
+    case errorNoWiFiAddress
+    case errorInvalidAddress
+    case errorInvalidPairingCode
+    case errorNoRouteHint
+
+    // Wi-Fi: Preferences
+    case prefsWireless
+    case prefsWirelessDiscovery
+    case prefsWirelessNote
 }

@@ -42,6 +42,9 @@ extension Localizing {
         case .notFound: return text(.errorAdbNotFound)
         case .timedOut: return text(.errorTimedOut)
         case .launchFailed(let reason): return text(.errorLaunchFailed, reason)
+        case .noWiFiAddress: return text(.errorNoWiFiAddress)
+        case .invalidAddress: return text(.errorInvalidAddress)
+        case .invalidPairingCode: return text(.errorInvalidPairingCode)
         case .commandFailed(let output): return output  // keluaran mentah dari adb, tidak diterjemahkan
         }
     }

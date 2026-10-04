@@ -11,6 +11,8 @@ import Foundation
 protocol DeviceMonitoring: AnyObject {
     /// Dipanggil hanya ketika status berubah dibanding poll sebelumnya.
     var onStatusChange: ((ADBStatus) -> Void)? { get set }
+    /// Dipanggil hanya ketika daftar device yang tersedia lewat Wi-Fi (belum tersambung) berubah.
+    var onWirelessChange: (([WirelessService]) -> Void)? { get set }
     func start()
     func stop()
     /// Polling segera. Jika polling sedang berjalan, satu putaran lagi dijalankan setelah selesai.
@@ -25,23 +27,31 @@ protocol DeviceMonitoring: AnyObject {
 final class DeviceMonitor: DeviceMonitoring {
 
     var onStatusChange: ((ADBStatus) -> Void)?
+    var onWirelessChange: (([WirelessService]) -> Void)?
 
     private let service: ADBServicing
+    private let discovery: WirelessDiscovering
+    private let discoverySettings: WirelessDiscoveryProviding
     private let intervalProvider: RefreshIntervalProviding
     private let scheduler: Scheduling
     private let notificationCenter: NotificationCenter
 
     private var status: ADBStatus?
+    private var wireless: [WirelessService] = []
     private var scheduledPoll: ScheduledTask?
     private var isRunning = false
     private var isPolling = false
     private var needsAnotherPoll = false
 
     init(service: ADBServicing,
+         discovery: WirelessDiscovering,
+         discoverySettings: WirelessDiscoveryProviding,
          intervalProvider: RefreshIntervalProviding,
          scheduler: Scheduling,
          notificationCenter: NotificationCenter = .default) {
         self.service = service
+        self.discovery = discovery
+        self.discoverySettings = discoverySettings
         self.intervalProvider = intervalProvider
         self.scheduler = scheduler
         self.notificationCenter = notificationCenter
@@ -90,17 +100,33 @@ final class DeviceMonitor: DeviceMonitoring {
         isPolling = true
 
         service.listDevices { [weak self] result in
-            self?.finishPoll(with: ADBStatus(result: result))
+            guard let self = self else { return }
+            let newStatus = ADBStatus(result: result)
+
+            // Penemuan Wi-Fi hanya berarti jika ADB berjalan dan pengguna tidak mematikannya.
+            guard case .devices(let devices) = newStatus, self.discoverySettings.wirelessDiscoveryEnabled else {
+                self.finishPoll(with: newStatus, wireless: [])
+                return
+            }
+            self.discovery.discoverWireless { [weak self] discovered in
+                // Kegagalan penemuan (mis. mDNS tidak tersedia) bukan error: daftar Wi-Fi cukup dikosongkan.
+                let available = ((try? discovered.get()) ?? []).filter { !$0.isConnected(among: devices) }
+                self?.finishPoll(with: newStatus, wireless: available)
+            }
         }
     }
 
-    private func finishPoll(with newStatus: ADBStatus) {
+    private func finishPoll(with newStatus: ADBStatus, wireless newWireless: [WirelessService]) {
         isPolling = false
         guard isRunning else { return }
 
         if newStatus != status {
             status = newStatus
             onStatusChange?(newStatus)
+        }
+        if newWireless != wireless {
+            wireless = newWireless
+            onWirelessChange?(newWireless)
         }
 
         if needsAnotherPoll {

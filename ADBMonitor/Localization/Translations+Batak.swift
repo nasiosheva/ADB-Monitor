@@ -33,6 +33,8 @@ extension Translations {
         .labelValue: "%1$@: %2$@",
 
         .menuCopySerial: "Salin Nomor Serial",
+        .menuOpenDeveloperOptions: "Buka Opsi Pengembang",
+        .developerOptionsFailureTitle: "Ndang boi buka Opsi pengembang di %@",
         .menuRefresh: "Pabaru",
         .menuPreferences: "Pengaturan…",
         .menuQuit: "Pasidung ADB Monitor",
@@ -92,5 +94,42 @@ extension Translations {
         .prefsLanguageSystem: "Sama dohot sistem",
         .prefsSave: "Simpan",
         .prefsSelectAdbPanel: "Pillit file adb",
+
+        .menuWirelessHeader: "Na dapot lewat Wi-Fi (%@)",
+        .menuWirelessConnectItem: "Sambung tu %@",
+        .menuWirelessPairItem: "Pairing dohot %@…",
+        .menuConnectByAddress: "Sambung tu Alamat IP…",
+        .menuPairDevice: "Pairing Alat…",
+        .menuDisconnect: "Putus Sambungan",
+        .menuSwitchToWiFi: "Pindah tu Wi-Fi",
+
+        .connectPromptTitle: "Sambung lewat Wi-Fi",
+        .connectPromptBody: "Isi alamat IP ni alat. Port biasa 5555; molo Wireless debugging, pakke port na tarida "
+            + "di alat i.",
+        .connectPromptPlaceholder: "192.168.1.5:5555",
+        .connectPromptButton: "Sambung",
+        .pairPromptTitle: "Pairing alat",
+        .pairPromptBody: "Di alat i buka Opsi pengembang → Wireless debugging → Pair device with pairing code, "
+            + "laos isi alamat dohot kode na adong disi.",
+        .pairAddressPlaceholder: "Alamat IP dohot port (192.168.1.5:41223)",
+        .pairCodePlaceholder: "Kode pairing 6 angka",
+        .pairPromptButton: "Pairing",
+
+        .pairSuccessTitle: "Pairing marhasil",
+        .pairSuccessBody: "%@ nunga dipairing. Molo ndang tarida di daftar, sambung sian Na dapot lewat Wi-Fi.",
+        .wirelessConnectFailureTitle: "Ndang boi sambung tu %@",
+        .wirelessPairFailureTitle: "Ndang boi pairing dohot %@",
+        .wirelessDisconnectFailureTitle: "Ndang boi putus sambungan %@",
+        .wirelessSwitchFailureTitle: "Ndang boi pindahon %@ tu Wi-Fi",
+        .errorNoWiFiAddress: "Alat on ndang adong alamat IP Wi-Fi. Sambung dolo tu Wi-Fi.",
+        .errorInvalidAddress: "Isi alamat IP na tama, boi dihut port (songon 192.168.1.5:5555).",
+        .errorInvalidPairingCode: "Isi kode pairing 6 angka na tarida di alat i.",
+        .errorNoRouteHint: "Molo alat na asing di jaringan on boi dijangkau, server adb na nunga mansai mungkin "
+            + "ndang adong izin Jaringan Lokal. Jalankon adb kill-server, laos izinkon ADB Monitor di "
+            + "Pengaturan Sistem → Privasi & Keamanan → Jaringan Lokal.",
+
+        .prefsWireless: "Wi-Fi:",
+        .prefsWirelessDiscovery: "Deteksi alat di Wi-Fi",
+        .prefsWirelessNote: "Memakai mDNS; sebagian jaringan memblokirnya.",
     ]
 }

@@ -17,8 +17,8 @@ protocol ADBServicing {
 /// ke model domain. Tidak tahu apa pun soal polling maupun UI.
 final class ADBService: ADBServicing {
 
-    private typealias RawResult = Result<ProcessOutput, ProcessError>
-    private typealias CommandResult = Result<ProcessOutput, ADBError>
+    typealias RawResult = Result<ProcessOutput, ProcessError>
+    typealias CommandResult = Result<ProcessOutput, ADBError>
 
     private static let listTimeout: TimeInterval = 10
     private static let powerTimeout: TimeInterval = 15
@@ -27,15 +27,18 @@ final class ADBService: ADBServicing {
     private let locator: ADBLocating
     private let parser: DeviceListParsing
     private let runner: ProcessRunning
+    let serviceParser: WirelessServiceParsing
 
     init(pathProvider: ADBPathProviding,
          locator: ADBLocating,
          parser: DeviceListParsing,
-         runner: ProcessRunning) {
+         runner: ProcessRunning,
+         serviceParser: WirelessServiceParsing = WirelessServiceParser()) {
         self.pathProvider = pathProvider
         self.locator = locator
         self.parser = parser
         self.runner = runner
+        self.serviceParser = serviceParser
     }
 
     func listDevices(completion: @escaping (Result<[ADBDevice], ADBError>) -> Void) {
@@ -52,9 +55,9 @@ final class ADBService: ADBServicing {
 
     // MARK: - Execution
 
-    private func execute(_ arguments: [String],
-                         timeout: TimeInterval,
-                         completion: @escaping (CommandResult) -> Void) {
+    func execute(_ arguments: [String],
+                 timeout: TimeInterval,
+                 completion: @escaping (CommandResult) -> Void) {
         let customPath = pathProvider.adbPath
         guard let adbPath = locator.locate(customPath: customPath) else {
             completion(.failure(.notFound(customPath: customPath)))
@@ -81,11 +84,12 @@ final class ADBService: ADBServicing {
         }
     }
 
-    private static func failureMessage(from output: ProcessOutput) -> String {
-        let firstLine = output.stderr
-            .split(whereSeparator: \.isNewline)
-            .map { $0.trimmed }
-            .first { !$0.isEmpty }
-        return firstLine ?? "adb exited with code \(output.exitCode)."
+    static func failureMessage(from output: ProcessOutput) -> String {
+        firstLine(of: output.stderr) ?? "adb exited with code \(output.exitCode)."
+    }
+
+    /// Baris pertama yang tidak kosong, atau `nil`.
+    static func firstLine(of text: String) -> String? {
+        text.split(whereSeparator: \.isNewline).map { $0.trimmed }.first { !$0.isEmpty }
     }
 }

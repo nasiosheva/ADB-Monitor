@@ -29,6 +29,8 @@ extension Translations {
         .labelValue: "%1$@: %2$@",
 
         .menuCopySerial: "Salin Nomor Serial",
+        .menuOpenDeveloperOptions: "Buka Opsi Pengembang",
+        .developerOptionsFailureTitle: "Gagal membuka Opsi pengembang di %@",
         .menuRefresh: "Segarkan",
         .menuPreferences: "Preferensi…",
         .menuQuit: "Keluar dari ADB Monitor",
@@ -89,5 +91,42 @@ extension Translations {
         .prefsLanguageSystem: "Ikuti sistem",
         .prefsSave: "Simpan",
         .prefsSelectAdbPanel: "Pilih file eksekusi adb",
+
+        .menuWirelessHeader: "Tersedia lewat Wi-Fi (%@)",
+        .menuWirelessConnectItem: "Hubungkan ke %@",
+        .menuWirelessPairItem: "Pairing dengan %@…",
+        .menuConnectByAddress: "Hubungkan ke Alamat IP…",
+        .menuPairDevice: "Pairing Perangkat…",
+        .menuDisconnect: "Putuskan Koneksi",
+        .menuSwitchToWiFi: "Pindah ke Wi-Fi",
+
+        .connectPromptTitle: "Hubungkan lewat Wi-Fi",
+        .connectPromptBody: "Masukkan alamat IP perangkat. Port bawaan 5555; untuk Wireless debugging pakai port "
+            + "yang tampil di perangkat.",
+        .connectPromptPlaceholder: "192.168.1.5:5555",
+        .connectPromptButton: "Hubungkan",
+        .pairPromptTitle: "Pairing perangkat",
+        .pairPromptBody: "Di perangkat buka Opsi pengembang → Debugging nirkabel → Sambungkan perangkat dengan kode "
+            + "pairing, lalu masukkan alamat dan kode yang tampil di sana.",
+        .pairAddressPlaceholder: "Alamat IP dan port (192.168.1.5:41223)",
+        .pairCodePlaceholder: "Kode pairing 6 digit",
+        .pairPromptButton: "Pairing",
+
+        .pairSuccessTitle: "Pairing berhasil",
+        .pairSuccessBody: "%@ sudah dipairing. Jika belum muncul di daftar, hubungkan lewat Tersedia lewat Wi-Fi.",
+        .wirelessConnectFailureTitle: "Gagal terhubung ke %@",
+        .wirelessPairFailureTitle: "Gagal pairing dengan %@",
+        .wirelessDisconnectFailureTitle: "Gagal memutus koneksi %@",
+        .wirelessSwitchFailureTitle: "Gagal memindahkan %@ ke Wi-Fi",
+        .errorNoWiFiAddress: "Perangkat tidak punya alamat IP Wi-Fi. Hubungkan ke Wi-Fi dulu.",
+        .errorInvalidAddress: "Masukkan alamat IP yang valid, boleh diikuti port (misalnya 192.168.1.5:5555).",
+        .errorInvalidPairingCode: "Masukkan kode pairing 6 digit yang tampil di perangkat.",
+        .errorNoRouteHint: "Jika perangkat lain di jaringan ini bisa dijangkau, server adb yang sudah berjalan "
+            + "mungkin tidak punya izin Jaringan Lokal. Jalankan adb kill-server, lalu izinkan ADB Monitor di "
+            + "Pengaturan Sistem → Privasi & Keamanan → Jaringan Lokal.",
+
+        .prefsWireless: "Wi-Fi:",
+        .prefsWirelessDiscovery: "Deteksi perangkat di Wi-Fi",
+        .prefsWirelessNote: "Memakai mDNS; sebagian jaringan memblokirnya.",
     ]
 }

@@ -7,13 +7,27 @@
 
 import AppKit
 
+/// Aksi koneksi ADB lewat Wi-Fi yang bisa diminta pengguna dari dropdown menu.
+@MainActor
+protocol WirelessActionHandling: AnyObject {
+    /// Menyambungkan ke layanan yang ditemukan lewat mDNS (`host:port`).
+    func statusMenu(didRequestConnectTo address: String)
+    /// Meminta pengguna mengetik alamat, lalu menyambungkan.
+    func statusMenuDidRequestConnectByAddress()
+    /// Pairing; `address` terisi bila berasal dari layanan pairing yang ditemukan, `nil` untuk input manual.
+    func statusMenu(didRequestPairingWith address: String?)
+    func statusMenu(didRequestDisconnect device: ADBDevice)
+    func statusMenu(didRequestSwitchToWireless device: ADBDevice)
+}
+
 /// Aksi yang bisa diminta pengguna dari dropdown menu.
 @MainActor
-protocol StatusMenuActionHandling: AnyObject {
+protocol StatusMenuActionHandling: WirelessActionHandling {
     func statusMenuDidRequestRefresh()
     func statusMenuDidRequestPreferences()
     func statusMenuDidRequestQuit()
     func statusMenu(didRequest action: PowerAction, on device: ADBDevice)
+    func statusMenu(didRequestOpenDeveloperOptionsOn device: ADBDevice)
 }
 
 /// Mengisi `NSMenu` sesuai `ADBStatus` dan meneruskan klik ke `StatusMenuActionHandling`.
@@ -35,20 +49,21 @@ final class StatusMenuBuilder: NSObject {
     }
 
     /// Mengisi ulang menu yang sama (bukan membuat baru) agar menu yang sedang terbuka tidak tertutup.
-    func populate(_ menu: NSMenu, for status: ADBStatus?) {
+    /// `wireless` berisi layanan Wi-Fi yang ditemukan tetapi belum tersambung.
+    func populate(_ menu: NSMenu, for status: ADBStatus?, wireless: [WirelessService] = []) {
         menu.removeAllItems()
-        let items = statusItems(for: status) + [.separator()] + commandItems()
+        let items = statusItems(for: status, wireless: wireless) + [.separator()] + commandItems()
         items.forEach(menu.addItem)
     }
 
     // MARK: - Status section
 
-    private func statusItems(for status: ADBStatus?) -> [NSMenuItem] {
+    private func statusItems(for status: ADBStatus?, wireless: [WirelessService]) -> [NSMenuItem] {
         guard let status = status else { return [.info(l10n.text(.menuChecking))] }
 
         switch status {
         case .devices(let devices):
-            return deviceListItems(for: devices)
+            return deviceListItems(for: devices) + wirelessItems(for: wireless) + wirelessCommandItems()
         case .adbNotFound(let customPath):
             return adbNotFoundItems(customPath: customPath)
         case .failure(let error):
@@ -74,6 +89,39 @@ final class StatusMenuBuilder: NSObject {
         ]
     }
 
+    // MARK: - Wi-Fi section
+
+    private func wirelessItems(for services: [WirelessService]) -> [NSMenuItem] {
+        guard !services.isEmpty else { return [] }
+        return [.separator(), .info(l10n.text(.menuWirelessHeader, String(services.count)))]
+            + services.map(wirelessServiceItem)
+    }
+
+    private func wirelessServiceItem(for service: WirelessService) -> NSMenuItem {
+        let label = "\(service.displayName) (\(service.address))"
+        switch service.kind {
+        case .connect:
+            return .command(l10n.text(.menuWirelessConnectItem, label),
+                            action: #selector(connectServiceSelected(_:)),
+                            target: self,
+                            representedObject: service.address)
+        case .pairing:
+            return .command(l10n.text(.menuWirelessPairItem, label),
+                            action: #selector(pairServiceSelected(_:)),
+                            target: self,
+                            representedObject: service.address)
+        }
+    }
+
+    /// Selalu tampil (selama ADB berjalan): koneksi manual tetap berguna di jaringan yang memblokir mDNS.
+    private func wirelessCommandItems() -> [NSMenuItem] {
+        [
+            .separator(),
+            .command(l10n.text(.menuConnectByAddress), action: #selector(connectByAddressSelected), target: self),
+            .command(l10n.text(.menuPairDevice), action: #selector(pairDeviceSelected), target: self),
+        ]
+    }
+
     // MARK: - Device item
 
     private func deviceItem(for device: ADBDevice) -> NSMenuItem {
@@ -93,7 +141,8 @@ final class StatusMenuBuilder: NSObject {
         if let hintKey = device.state.hintKey {
             items += [.separator(), .info(l10n.text(hintKey))]
         }
-        items += [.separator(), copySerialItem(for: device)] + powerItems(for: device)
+        items += [.separator(), copySerialItem(for: device)]
+        items += wirelessDeviceItems(for: device) + [developerOptionsItem(for: device)] + powerItems(for: device)
 
         items.forEach(menu.addItem)
         return menu
@@ -115,6 +164,34 @@ final class StatusMenuBuilder: NSObject {
     private func copySerialItem(for device: ADBDevice) -> NSMenuItem {
         .command(l10n.text(.menuCopySerial), action: #selector(copySerialSelected(_:)), target: self,
                  representedObject: device.serial)
+    }
+
+    /// Hanya untuk device yang tersambung normal; perintahnya dikirim lewat shell Android.
+    private func developerOptionsItem(for device: ADBDevice) -> NSMenuItem {
+        let item = NSMenuItem.command(l10n.text(.menuOpenDeveloperOptions),
+                                      action: #selector(developerOptionsSelected(_:)),
+                                      target: self,
+                                      representedObject: device)
+        item.isEnabled = device.state == .device
+        return item
+    }
+
+    /// Device Wi-Fi bisa diputus; device USB yang siap bisa dipindahkan ke Wi-Fi.
+    private func wirelessDeviceItems(for device: ADBDevice) -> [NSMenuItem] {
+        switch device.connection {
+        case .network:
+            return [.command(l10n.text(.menuDisconnect),
+                             action: #selector(disconnectSelected(_:)),
+                             target: self,
+                             representedObject: device)]
+        case .usb where device.state == .device:
+            return [.command(l10n.text(.menuSwitchToWiFi),
+                             action: #selector(switchToWirelessSelected(_:)),
+                             target: self,
+                             representedObject: device)]
+        default:
+            return []
+        }
     }
 
     private func powerItems(for device: ADBDevice) -> [NSMenuItem] {
@@ -149,6 +226,34 @@ final class StatusMenuBuilder: NSObject {
         guard let serial = sender.representedObject as? String else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(serial, forType: .string)
+    }
+
+    @objc private func developerOptionsSelected(_ sender: NSMenuItem) {
+        guard let device = sender.representedObject as? ADBDevice else { return }
+        handler?.statusMenu(didRequestOpenDeveloperOptionsOn: device)
+    }
+
+    @objc private func connectServiceSelected(_ sender: NSMenuItem) {
+        guard let address = sender.representedObject as? String else { return }
+        handler?.statusMenu(didRequestConnectTo: address)
+    }
+
+    @objc private func pairServiceSelected(_ sender: NSMenuItem) {
+        guard let address = sender.representedObject as? String else { return }
+        handler?.statusMenu(didRequestPairingWith: address)
+    }
+
+    @objc private func connectByAddressSelected() { handler?.statusMenuDidRequestConnectByAddress() }
+    @objc private func pairDeviceSelected() { handler?.statusMenu(didRequestPairingWith: nil) }
+
+    @objc private func disconnectSelected(_ sender: NSMenuItem) {
+        guard let device = sender.representedObject as? ADBDevice else { return }
+        handler?.statusMenu(didRequestDisconnect: device)
+    }
+
+    @objc private func switchToWirelessSelected(_ sender: NSMenuItem) {
+        guard let device = sender.representedObject as? ADBDevice else { return }
+        handler?.statusMenu(didRequestSwitchToWireless: device)
     }
 
     @objc private func powerActionSelected(_ sender: NSMenuItem) {

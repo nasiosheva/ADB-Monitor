@@ -27,6 +27,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     private let intervalTitle = NSTextField(labelWithString: "")
     private let languageTitle = NSTextField(labelWithString: "")
     private let startupTitle = NSTextField(labelWithString: "")
+    private let wirelessTitle = NSTextField(labelWithString: "")
     private let chooseButton = NSButton(title: "", target: nil, action: nil)
     private let cancelButton = NSButton(title: "", target: nil, action: nil)
     private let saveButton = NSButton(title: "", target: nil, action: nil)
@@ -38,6 +39,8 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     private let languagePopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let launchCheckbox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let launchNote = NSTextField(labelWithString: "")
+    private let wirelessCheckbox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let wirelessNote = NSTextField(labelWithString: "")
 
     init(preferences: PreferencesStoring,
          locator: ADBLocating,
@@ -48,7 +51,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         self.launchAtLogin = launchAtLogin
         self.l10n = localizer
 
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 290),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 340),
                               styleMask: [.titled, .closable],
                               backing: .buffered,
                               defer: false)
@@ -83,6 +86,8 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
             [languageTitle, languagePopup],
             [startupTitle, launchCheckbox],
             [NSGridCell.emptyContentView, makeLaunchNote()],
+            [wirelessTitle, wirelessCheckbox],
+            [NSGridCell.emptyContentView, makeWirelessNote()],
         ])
         form.rowSpacing = 10
         form.columnSpacing = 10
@@ -118,6 +123,13 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         launchNote.textColor = .secondaryLabelColor
         launchNote.lineBreakMode = .byTruncatingTail
         return launchNote
+    }
+
+    private func makeWirelessNote() -> NSView {
+        wirelessNote.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        wirelessNote.textColor = .secondaryLabelColor
+        wirelessNote.lineBreakMode = .byTruncatingTail
+        return wirelessNote
     }
 
     private func makeIntervalRow() -> NSView {
@@ -181,6 +193,9 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         cancelButton.title = l10n.text(.commonCancel)
         saveButton.title = l10n.text(.prefsSave)
         launchCheckbox.title = l10n.text(.prefsLaunchAtLogin)
+        wirelessTitle.stringValue = l10n.text(.prefsWireless)
+        wirelessCheckbox.title = l10n.text(.prefsWirelessDiscovery)
+        wirelessNote.stringValue = l10n.text(.prefsWirelessNote)
     }
 
     private func rebuildLanguageMenu(selecting preference: LanguagePreference) {
@@ -211,6 +226,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         updateIntervalLabel()
         updateDetectedLabel()
         rebuildLanguageMenu(selecting: preferences.languagePreference)
+        wirelessCheckbox.state = preferences.wirelessDiscoveryEnabled ? .on : .off
         loadLaunchAtLogin()
     }
 
@@ -288,7 +304,8 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     @objc private func save() {
         preferences.save(adbPath: pathField.stringValue,
                          refreshInterval: intervalStepper.doubleValue,
-                         language: selectedLanguagePreference())
+                         language: selectedLanguagePreference(),
+                         wirelessDiscovery: wirelessCheckbox.state == .on)
 
         if let error = applyLaunchAtLogin() {
             // Pengaturan lain sudah tersimpan; jendela tetap terbuka agar pengguna melihat kegagalan ini.

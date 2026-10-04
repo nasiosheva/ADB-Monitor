@@ -12,6 +12,8 @@ import AppKit
 protocol StatusBarRendering: AnyObject {
     /// `nil` berarti belum ada hasil polling pertama.
     func render(_ status: ADBStatus?)
+    /// Layanan Wi-Fi yang tersedia (ditemukan, belum tersambung).
+    func renderWireless(_ services: [WirelessService])
 }
 
 /// Memiliki `NSStatusItem` di menu bar dan menyinkronkan tombol serta dropdown dengan `ADBStatus`.
@@ -23,6 +25,7 @@ final class StatusBarController: StatusBarRendering {
     private let menuBuilder: StatusMenuBuilder
     private let buttonPresenter = StatusButtonPresenter()
     private var lastStatus: ADBStatus?
+    private var lastWireless: [WirelessService] = []
 
     init(actionHandler: StatusMenuActionHandling, localizer: Localizing) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -47,7 +50,12 @@ final class StatusBarController: StatusBarRendering {
         if let button = statusItem.button {
             buttonPresenter.apply(status, to: button)
         }
-        menuBuilder.populate(menu, for: status)
+        menuBuilder.populate(menu, for: status, wireless: lastWireless)
+    }
+
+    func renderWireless(_ services: [WirelessService]) {
+        lastWireless = services
+        menuBuilder.populate(menu, for: lastStatus, wireless: lastWireless)
     }
 
     /// Bahasa berubah: bangun ulang menu dengan status terakhir tanpa menunggu poll berikutnya.

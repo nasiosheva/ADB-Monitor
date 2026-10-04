@@ -12,6 +12,9 @@ protocol AlertPresenting {
     /// `true` jika pengguna menyetujui. Memblokir sampai dialog ditutup.
     func confirm(_ action: PowerAction, on device: ADBDevice) -> Bool
     func showFailure(of action: PowerAction, on device: ADBDevice, error: ADBError)
+    /// Dialog kesalahan umum (judul dan isi sudah diterjemahkan oleh pemanggil).
+    func showError(title: String, message: String)
+    func showInfo(title: String, message: String)
 }
 
 @MainActor
@@ -38,6 +41,22 @@ struct AppKitAlertPresenter: AlertPresenting {
         alert.messageText = l10n.text(action.failureTitleKey, device.displayName)
         alert.informativeText = l10n.message(for: error)
         alert.alertStyle = .critical
+        _ = run(alert)
+    }
+
+    func showError(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        _ = run(alert)
+    }
+
+    func showInfo(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .informational
         _ = run(alert)
     }
 

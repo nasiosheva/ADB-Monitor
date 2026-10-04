@@ -22,9 +22,16 @@ protocol LanguageProviding {
     var languagePreference: LanguagePreference { get }
 }
 
-protocol PreferencesStoring: ADBPathProviding, RefreshIntervalProviding, LanguageProviding {
+protocol WirelessDiscoveryProviding {
+    /// Apakah device di jaringan Wi-Fi dicari lewat mDNS pada setiap polling. Bawaan: aktif.
+    var wirelessDiscoveryEnabled: Bool { get }
+}
+
+protocol PreferencesStoring: ADBPathProviding, RefreshIntervalProviding, LanguageProviding,
+                             WirelessDiscoveryProviding {
     /// Menyimpan pengaturan lalu memposting `.preferencesDidChange`.
-    func save(adbPath: String?, refreshInterval: TimeInterval, language: LanguagePreference)
+    func save(adbPath: String?, refreshInterval: TimeInterval, language: LanguagePreference,
+              wirelessDiscovery: Bool)
 }
 
 enum RefreshIntervalLimits {

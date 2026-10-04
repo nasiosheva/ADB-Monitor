@@ -49,9 +49,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                  locator: locator,
                                  parser: DeviceListParser(),
                                  runner: ProcessManager())
+        let scheduler = RunLoopScheduler()
         let monitor = DeviceMonitor(service: service,
+                                    discovery: service,
+                                    discoverySettings: preferences,
                                     intervalProvider: preferences,
-                                    scheduler: RunLoopScheduler())
+                                    scheduler: scheduler)
+        let alerts = AppKitAlertPresenter(localizer: localizer)
+        let wireless = WirelessCoordinator(controller: service,
+                                           switcher: WirelessSwitcher(controller: service, scheduler: scheduler),
+                                           prompts: AppKitWirelessPrompter(localizer: localizer),
+                                           alerts: alerts,
+                                           monitor: monitor,
+                                           localizer: localizer)
 
         let makePreferencesWindow: @MainActor () -> PreferencesWindowController = {
             PreferencesWindowController(preferences: preferences,
@@ -62,7 +72,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         return AppCoordinator(monitor: monitor,
                               service: service,
-                              alerts: AppKitAlertPresenter(localizer: localizer),
+                              alerts: alerts,
+                              wireless: wireless,
+                              settings: service,
+                              localizer: localizer,
                               makeStatusBar: { StatusBarController(actionHandler: $0, localizer: localizer) },
                               makePreferencesWindow: makePreferencesWindow)
     }

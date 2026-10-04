@@ -32,6 +32,8 @@ extension Translations {
         .labelValue: "%1$@：%2$@",
 
         .menuCopySerial: "複製序號",
+        .menuOpenDeveloperOptions: "開啟開發人員選項",
+        .developerOptionsFailureTitle: "喺 %@ 度開啟唔到開發人員選項",
         .menuRefresh: "重新整理",
         .menuPreferences: "偏好設定…",
         .menuQuit: "結束 ADB Monitor",
@@ -90,5 +92,39 @@ extension Translations {
         .prefsLanguageSystem: "跟隨系統",
         .prefsSave: "儲存",
         .prefsSelectAdbPanel: "揀選 adb 可執行檔",
+
+        .menuWirelessHeader: "可以經 Wi-Fi 連接（%@）",
+        .menuWirelessConnectItem: "連接去 %@",
+        .menuWirelessPairItem: "同 %@ 配對…",
+        .menuConnectByAddress: "連接去 IP 位址…",
+        .menuPairDevice: "配對裝置…",
+        .menuDisconnect: "中斷連接",
+        .menuSwitchToWiFi: "轉用 Wi-Fi",
+
+        .connectPromptTitle: "經 Wi-Fi 連接",
+        .connectPromptBody: "請輸入裝置嘅 IP 位址。連接埠預設係 5555；如果用無線偵錯，請輸入裝置上顯示嘅連接埠。",
+        .connectPromptPlaceholder: "192.168.1.5:5555",
+        .connectPromptButton: "連接",
+        .pairPromptTitle: "配對裝置",
+        .pairPromptBody: "喺裝置度開啟「開發人員選項」→「無線偵錯」→「使用配對碼配對裝置」，然後輸入嗰度顯示嘅位址同配對碼。",
+        .pairAddressPlaceholder: "IP 位址同連接埠（192.168.1.5:41223）",
+        .pairCodePlaceholder: "6 位數配對碼",
+        .pairPromptButton: "配對",
+
+        .pairSuccessTitle: "配對成功",
+        .pairSuccessBody: "%@ 已經配對。如果冇喺清單出現，請喺「可以經 Wi-Fi 連接」度連接。",
+        .wirelessConnectFailureTitle: "連接唔到 %@",
+        .wirelessPairFailureTitle: "同 %@ 配對唔到",
+        .wirelessDisconnectFailureTitle: "中斷唔到 %@ 嘅連接",
+        .wirelessSwitchFailureTitle: "轉唔到 %@ 用 Wi-Fi",
+        .errorNoWiFiAddress: "裝置冇 Wi-Fi IP 位址，請先連接 Wi-Fi。",
+        .errorInvalidAddress: "請輸入有效嘅 IP 位址，可以加上連接埠（例如 192.168.1.5:5555）。",
+        .errorInvalidPairingCode: "請輸入裝置上顯示嘅 6 位數配對碼。",
+        .errorNoRouteHint: "如果網絡上嘅其他裝置連到，可能係已經行緊嘅 adb 伺服器冇「本地網絡」權限。"
+            + "請執行 adb kill-server，然後喺「系統設定」→「私隱與安全性」→「本地網絡」允許 ADB Monitor。",
+
+        .prefsWireless: "Wi-Fi：",
+        .prefsWirelessDiscovery: "偵測 Wi-Fi 上嘅裝置",
+        .prefsWirelessNote: "使用 mDNS；部分網絡會封鎖。",
     ]
 }

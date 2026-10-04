@@ -30,6 +30,8 @@ extension Translations {
         .labelValue: "%1$@：%2$@",
 
         .menuCopySerial: "拷貝序號",
+        .menuOpenDeveloperOptions: "開啟開發人員選項",
+        .developerOptionsFailureTitle: "無法在 %@ 上開啟開發人員選項",
         .menuRefresh: "重新整理",
         .menuPreferences: "偏好設定…",
         .menuQuit: "結束 ADB Monitor",
@@ -88,5 +90,39 @@ extension Translations {
         .prefsLanguageSystem: "跟隨系統",
         .prefsSave: "儲存",
         .prefsSelectAdbPanel: "選擇 adb 可執行檔",
+
+        .menuWirelessHeader: "可透過 Wi-Fi 連線（%@）",
+        .menuWirelessConnectItem: "連線至 %@",
+        .menuWirelessPairItem: "與 %@ 配對…",
+        .menuConnectByAddress: "連線至 IP 位址…",
+        .menuPairDevice: "配對裝置…",
+        .menuDisconnect: "中斷連線",
+        .menuSwitchToWiFi: "切換為 Wi-Fi",
+
+        .connectPromptTitle: "透過 Wi-Fi 連線",
+        .connectPromptBody: "請輸入裝置的 IP 位址。連接埠預設為 5555；若使用無線偵錯，請輸入裝置上顯示的連接埠。",
+        .connectPromptPlaceholder: "192.168.1.5:5555",
+        .connectPromptButton: "連線",
+        .pairPromptTitle: "配對裝置",
+        .pairPromptBody: "請在裝置上開啟「開發人員選項」→「無線偵錯」→「使用配對碼配對裝置」，然後輸入該處顯示的位址與配對碼。",
+        .pairAddressPlaceholder: "IP 位址與連接埠（192.168.1.5:41223）",
+        .pairCodePlaceholder: "6 位數配對碼",
+        .pairPromptButton: "配對",
+
+        .pairSuccessTitle: "配對成功",
+        .pairSuccessBody: "%@ 已配對。若未出現在清單中，請在「可透過 Wi-Fi 連線」中連線。",
+        .wirelessConnectFailureTitle: "無法連線至 %@",
+        .wirelessPairFailureTitle: "無法與 %@ 配對",
+        .wirelessDisconnectFailureTitle: "無法中斷 %@ 的連線",
+        .wirelessSwitchFailureTitle: "無法將 %@ 切換為 Wi-Fi",
+        .errorNoWiFiAddress: "裝置沒有 Wi-Fi IP 位址，請先連上 Wi-Fi。",
+        .errorInvalidAddress: "請輸入有效的 IP 位址，可加上連接埠（例如 192.168.1.5:5555）。",
+        .errorInvalidPairingCode: "請輸入裝置上顯示的 6 位數配對碼。",
+        .errorNoRouteHint: "若網路上的其他裝置可以連線，可能是已在執行的 adb 伺服器沒有「本地網路」權限。"
+            + "請執行 adb kill-server，然後在「系統設定」→「隱私權與安全性」→「本地網路」中允許 ADB Monitor。",
+
+        .prefsWireless: "Wi-Fi：",
+        .prefsWirelessDiscovery: "偵測 Wi-Fi 上的裝置",
+        .prefsWirelessNote: "使用 mDNS；部分網路會封鎖。",
     ]
 }

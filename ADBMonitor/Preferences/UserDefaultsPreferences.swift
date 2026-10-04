@@ -14,6 +14,7 @@ final class UserDefaultsPreferences: PreferencesStoring {
         static let adbPath = "adbPath"
         static let refreshInterval = "refreshInterval"
         static let language = "language"
+        static let wirelessDiscovery = "wirelessDiscovery"
     }
 
     private let defaults: UserDefaults
@@ -39,7 +40,12 @@ final class UserDefaultsPreferences: PreferencesStoring {
         LanguagePreference(storedValue: defaults.string(forKey: Key.language))
     }
 
-    func save(adbPath: String?, refreshInterval: TimeInterval, language: LanguagePreference) {
+    var wirelessDiscoveryEnabled: Bool {
+        defaults.object(forKey: Key.wirelessDiscovery) as? Bool ?? true
+    }
+
+    func save(adbPath: String?, refreshInterval: TimeInterval, language: LanguagePreference,
+              wirelessDiscovery: Bool) {
         if let path = adbPath?.trimmed, !path.isEmpty {
             defaults.set(path, forKey: Key.adbPath)
         } else {
@@ -51,6 +57,7 @@ final class UserDefaultsPreferences: PreferencesStoring {
         } else {
             defaults.removeObject(forKey: Key.language)
         }
+        defaults.set(wirelessDiscovery, forKey: Key.wirelessDiscovery)
         notificationCenter.post(name: .preferencesDidChange, object: self)
     }
 }
