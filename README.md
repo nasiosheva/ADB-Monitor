@@ -1,59 +1,60 @@
 <div align="center">
 
-<img src="ADBMonitor/Assets.xcassets/AppIcon.appiconset/icon_512x512.png" width="128" alt="Ikon ADB Monitor">
+<img src="ADBMonitor/Assets.xcassets/AppIcon.appiconset/icon_512x512.png" width="128" alt="ADB Monitor icon">
 
 # ADB Monitor
 
-**Pantau device Android yang terhubung lewat ADB langsung dari menu bar macOS.**
+**Monitor Android devices connected over ADB from the macOS menu bar.**
 
 </div>
 
-ADB Monitor adalah aplikasi menu bar macOS (AppKit murni, tanpa ikon Dock) yang menjalankan `adb devices -l` secara berkala dan menampilkan hasilnya secara real-time: berapa device yang terhubung, apa modelnya, dan bagaimana statusnya. Dari menu yang sama Anda bisa menyalin serial device, me-restart, atau mematikannya.
+ADB Monitor is a macOS menu bar app (pure AppKit, no Dock icon). It runs `adb devices -l` on a timer and shows the result in real time: how many devices are connected, their models, and their connection states. From the same menu you can copy a device serial, restart a device, or shut it down.
 
-- [Fitur](#fitur)
-- [Persyaratan](#persyaratan)
-- [Instalasi](#instalasi)
-- [Cara pakai](#cara-pakai)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
 - [Preferences](#preferences)
-- [Status device](#status-device)
-- [Penanganan error](#penanganan-error)
-- [Arsitektur](#arsitektur)
-- [Pengembangan](#pengembangan)
-- [Pemecahan masalah](#pemecahan-masalah)
-- [Keterbatasan](#keterbatasan)
-- [Privasi dan keamanan](#privasi-dan-keamanan)
+- [Device states](#device-states)
+- [Error handling](#error-handling)
+- [Architecture](#architecture)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [Limitations](#limitations)
+- [Privacy and security](#privacy-and-security)
+- [License](#license)
 
-## Fitur
+## Features
 
-- **Ikon menu bar dengan jumlah device**, misalnya ikon dokumen ADB diikuti `2`.
-- **Daftar device** berisi nama model, serial, dan status koneksi, dengan titik berwarna (hijau, oranye, merah, abu-abu).
-- **Submenu detail per device**: status, serial, tipe koneksi (USB, Wi-Fi, Emulator), model, product, nama device, dan transport ID.
-- **Salin serial** dengan satu klik.
-- **Restart dan Shut Down device** dengan dialog konfirmasi, dikirim hanya ke device yang dipilih (`adb -s <serial>`).
-- **Auto-refresh**: menu diperbarui sendiri saat device dicolok atau dicabut, bahkan ketika menu sedang terbuka.
-- **Penanganan error** jika ADB belum terpasang, path kustom salah, `adb` error, atau tidak merespons.
-- **Preferences**: path ADB kustom dan interval refresh (1–60 detik, bawaan 3 detik).
-- **Dark mode dan light mode** otomatis (ikon menu bar berupa template image).
-- **Ringan**: tidak ada polling yang menumpuk, tidak ada proses `adb` yang tertinggal, dan seluruh kode lolos pengecekan strict concurrency Swift 6.
+- **Menu bar icon with a device count**, for example the ADB document icon followed by `2`.
+- **Device list** with model name, serial, and connection state, marked with a colored dot (green, orange, red, gray).
+- **Per-device detail submenu**: state, serial, connection type (USB, Wi-Fi, Emulator), model, product, device name, and transport ID.
+- **Copy serial** with one click.
+- **Restart and Shut Down** with a confirmation dialog. Commands go only to the selected device (`adb -s <serial>`).
+- **Auto-refresh**: the menu updates when a device is plugged in or unplugged, even while the menu is open.
+- **Error handling** for a missing ADB install, a bad custom path, `adb` errors, and `adb` timeouts.
+- **Preferences**: custom ADB path and refresh interval (1–60 seconds, default 3).
+- **Dark and light mode** supported automatically (the menu bar icon is a template image).
+- **Lightweight**: polls never overlap, no `adb` processes are left behind, and the code passes Swift 6 strict concurrency checking.
 
-## Persyaratan
+## Requirements
 
-| Kebutuhan | Keterangan |
+| Requirement | Details |
 |---|---|
-| macOS | 12.0 (Monterey) atau lebih baru |
-| ADB | `adb` dari Android platform-tools, terpasang di mesin Anda |
-| Xcode | Untuk membangun dari source. Proyek dibuat dengan Xcode 27 (format proyek `objectVersion 110`) |
-| Device Android | USB debugging aktif; saat pertama terhubung, izinkan komputer ini di perangkat |
+| macOS | 12.0 (Monterey) or later |
+| ADB | `adb` from Android platform-tools, installed on your machine |
+| Xcode | Needed to build from source. The project was created with Xcode 27 (project format `objectVersion 110`) |
+| Android device | USB debugging enabled. On the first connection, allow this computer on the device |
 
-Memasang ADB lewat Homebrew:
+Install ADB with Homebrew:
 
 ```sh
 brew install --cask android-platform-tools
 ```
 
-## Instalasi
+## Installation
 
-Belum ada rilis biner. Bangun dari source:
+There is no binary release yet. Build from source:
 
 ```sh
 git clone https://github.com/nasiosheva/ADB-Monitor.git
@@ -69,15 +70,15 @@ xcodebuild -project ADBMonitor.xcodeproj \
 open build/Build/Products/Release/ADBMonitor.app
 ```
 
-Atau buka `ADBMonitor.xcodeproj` di Xcode dan tekan **⌘R**.
+Or open `ADBMonitor.xcodeproj` in Xcode and press **⌘R**.
 
-Agar tersedia seperti aplikasi biasa, salin `ADBMonitor.app` ke `/Applications`. Untuk membukanya otomatis saat login, tambahkan lewat **System Settings → General → Login Items**. Fitur "launch at login" bawaan belum ada.
+To use it like a normal app, copy `ADBMonitor.app` to `/Applications`. To start it at login, add it under **System Settings → General → Login Items**. There is no built-in "launch at login" option.
 
-> **Catatan:** aplikasi ditandatangani dengan "Sign to Run Locally" (ad hoc) dan belum dinotarisasi. Di Mac lain, Gatekeeper akan memperingatkan; buka lewat klik kanan → **Open**.
+> **Note:** the app is signed with "Sign to Run Locally" (ad hoc) and is not notarized. On another Mac, Gatekeeper will warn. Open it with right-click → **Open**.
 
-## Cara pakai
+## Usage
 
-Setelah dijalankan, ikon muncul di menu bar dengan angka jumlah device. Klik untuk membuka menu:
+After launch, the icon appears in the menu bar with the number of connected devices. Click it to open the menu:
 
 ```
 Android Devices (2)
@@ -91,7 +92,7 @@ Preferences…                         ⌘,
 Quit ADB Monitor                     ⌘Q
 ```
 
-Arahkan kursor ke sebuah device untuk membuka submenunya:
+Hover over a device to open its submenu:
 
 ```
 Status: Connected
@@ -107,80 +108,80 @@ Restart Device…
 Shut Down Device…
 ```
 
-### Restart dan Shut Down
+### Restart and Shut Down
 
-Keduanya selalu meminta konfirmasi sebelum dijalankan.
+Both actions always ask for confirmation before they run.
 
-| Aksi | Perintah | Tersedia untuk |
+| Action | Command | Available for |
 |---|---|---|
 | Restart | `adb -s <serial> reboot` | Connected, Recovery |
 | Shut Down | `adb -s <serial> shell reboot -p` | Connected |
 
-Menu yang tidak tersedia untuk status device tertentu tampil abu-abu. Setelah shutdown, device **tidak bisa dinyalakan lagi dari Mac**. Perintah mati daya lewat shell (`reboot -p`) bisa ditolak oleh sebagian vendor atau ROM; jika gagal, pesan error dari `adb` ditampilkan dalam dialog.
+A menu item is grayed out when the action is not available for the device's current state. After a shutdown, the device **cannot be powered back on from the Mac**. Some vendors and ROMs reject the shell power-off command (`reboot -p`). If it fails, the error message from `adb` is shown in a dialog.
 
-### Pintasan keyboard
+### Keyboard shortcuts
 
-Berlaku saat menu terbuka.
+These work while the menu is open.
 
-| Pintasan | Aksi |
+| Shortcut | Action |
 |---|---|
-| ⌘R | Refresh segera |
-| ⌘, | Buka Preferences |
-| ⌘Q | Keluar |
+| ⌘R | Refresh now |
+| ⌘, | Open Preferences |
+| ⌘Q | Quit |
 
 ## Preferences
 
-Buka lewat **Preferences…** di menu (⌘,).
+Open it from **Preferences…** in the menu (⌘,).
 
-| Pengaturan | Keterangan |
+| Setting | Details |
 |---|---|
-| **ADB path** | Kosongkan untuk deteksi otomatis. Isi untuk memakai binary tertentu. Tombol **Choose…** membuka pemilih file. Label di bawah kolom menunjukkan path yang akan dipakai atau pesan kesalahan. |
-| **Refresh interval** | Jeda antar polling, 1–60 detik (bawaan 3). |
+| **ADB path** | Leave empty for auto-detection. Set it to use a specific binary. **Choose…** opens a file picker. The label under the field shows the path that will be used, or an error message. |
+| **Refresh interval** | Delay between polls, 1–60 seconds (default 3). |
 
-Perubahan berlaku seketika setelah **Save**: aplikasi langsung melakukan refresh dengan pengaturan baru.
+Changes take effect right after **Save**: the app refreshes immediately with the new settings.
 
-### Urutan deteksi ADB otomatis
+### ADB auto-detection order
 
-Aplikasi GUI tidak mewarisi `PATH` dari shell Anda, jadi `adb` dicari di beberapa lokasi, berurutan:
+GUI apps do not inherit the `PATH` from your shell, so `adb` is searched for in several places, in this order:
 
-1. Setiap direktori pada `PATH` milik proses
+1. Every directory in the process `PATH`
 2. `/opt/homebrew/bin/adb`, `/usr/local/bin/adb`, `/usr/bin/adb`
-3. `$ANDROID_HOME/platform-tools/adb` dan `$ANDROID_SDK_ROOT/platform-tools/adb`
+3. `$ANDROID_HOME/platform-tools/adb` and `$ANDROID_SDK_ROOT/platform-tools/adb`
 4. `~/Library/Android/sdk/platform-tools/adb`
 
-Jika **ADB path** kustom diisi tetapi tidak valid, aplikasi **tidak** diam-diam beralih ke deteksi otomatis. Menu menampilkan "ADB not found at custom path" agar kesalahannya terlihat.
+If you set a custom **ADB path** and it is invalid, the app does **not** silently fall back to auto-detection. The menu shows "ADB not found at custom path" so the mistake is visible.
 
-Pengaturan disimpan di `UserDefaults` (kunci `adbPath` dan `refreshInterval`).
+Settings are stored in `UserDefaults` (keys `adbPath` and `refreshInterval`).
 
-## Status device
+## Device states
 
-| Titik | Status ADB | Arti |
+| Dot | ADB state | Meaning |
 |---|---|---|
-| 🟢 | `device` | Terhubung normal |
-| 🟠 | `unauthorized`, `no permissions`, `authorizing`, `connecting` | Perlu tindakan atau sedang menyambung |
-| 🔴 | `offline` | Terdaftar tetapi tidak merespons |
-| ⚪ | `recovery`, `sideload`, `bootloader`, lainnya | Mode khusus |
+| 🟢 | `device` | Connected normally |
+| 🟠 | `unauthorized`, `no permissions`, `authorizing`, `connecting` | Needs action, or still connecting |
+| 🔴 | `offline` | Listed but not responding |
+| ⚪ | `recovery`, `sideload`, `bootloader`, others | Special mode |
 
-Beberapa status menampilkan petunjuk di submenu, misalnya "Accept the USB debugging prompt on the device." untuk `unauthorized`.
+Some states show a hint in the submenu, for example "Accept the USB debugging prompt on the device." for `unauthorized`.
 
-Tipe koneksi ditentukan dari serial: `emulator-*` adalah Emulator, serial berisi `:` atau `._adb-tls-` adalah Wi-Fi, selainnya USB bila ada path USB.
+The connection type is derived from the serial: `emulator-*` is Emulator, a serial that contains `:` or `._adb-tls-` is Wi-Fi, and anything else is USB when a USB path is present.
 
-## Penanganan error
+## Error handling
 
-Ikon berubah menjadi tanda peringatan dengan teks `ADB`, dan menu menjelaskan masalahnya:
+The icon changes to a warning symbol with the text `ADB`, and the menu explains the problem:
 
-| Situasi | Yang ditampilkan |
+| Situation | What is shown |
 |---|---|
-| ADB tidak ditemukan | "ADB is not installed" beserta petunjuk instalasi |
-| Path kustom salah | "ADB not found at custom path" dan path-nya |
-| `adb` keluar dengan error | Baris pertama `stderr`, atau kode keluar jika kosong |
-| `adb` tidak merespons | "adb did not respond (timed out)" (batas 10 detik untuk daftar device, 15 detik untuk restart/shutdown) |
+| ADB not found | "ADB is not installed" with install instructions |
+| Bad custom path | "ADB not found at custom path" and the path |
+| `adb` exits with an error | The first line of `stderr`, or the exit code if `stderr` is empty |
+| `adb` does not respond | "adb did not respond (timed out)" (10-second limit for the device list, 15 seconds for restart and shut down) |
 
-Setelah masalahnya diperbaiki (misalnya Anda memasang ADB), menu pulih sendiri pada polling berikutnya.
+After the problem is fixed (for example, you install ADB), the menu recovers on the next poll.
 
-## Arsitektur
+## Architecture
 
-Aplikasi dibangun dengan prinsip SOLID dan dependency injection manual. Semua kolaborator dipakai lewat protokol kecil, dan hanya `AppDelegate` (composition root) yang mengenal tipe konkret.
+The app follows SOLID principles with manual dependency injection. Collaborators are small protocols, and only `AppDelegate` (the composition root) knows the concrete types.
 
 ```mermaid
 flowchart LR
@@ -188,49 +189,49 @@ flowchart LR
     AS --> DM[DeviceMonitor]
     DM --> AC[AppCoordinator]
     AC --> SB[StatusBarController]
-    SB -. aksi pengguna .-> AC
+    SB -. user actions .-> AC
     AC -. perform / refresh .-> AS
 ```
 
-### Struktur folder
+### Folder structure
 
 ```
 ADBMonitor/
 ├── App/            AppDelegate (entry point + composition root), AppCoordinator, MainMenuBuilder
 ├── Models/         ADBDevice, ADBStatus, ADBError, PowerAction
 ├── Services/       ADBService, ADBLocator, DeviceListParser, DeviceMonitor, Scheduler
-├── Preferences/    Protokol preferensi, UserDefaultsPreferences
+├── Preferences/    Preference protocols, UserDefaultsPreferences
 ├── UI/             StatusBarController, StatusMenuBuilder, StatusButtonPresenter,
 │                   AlertPresenter, PreferencesWindowController, DeviceStateStyle
-├── Utils/          ProcessManager (+ ProcessSupport), UncheckedSendable, helper Foundation
+├── Utils/          ProcessManager (+ ProcessSupport), UncheckedSendable, Foundation helpers
 └── Assets.xcassets/  AppIcon, MenuBarIcon
 ```
 
-| Komponen | Tanggung jawab |
+| Component | Responsibility |
 |---|---|
-| `ProcessManager` | Menjalankan command di background queue dengan timeout; pipe dibaca asynchronous agar output besar tidak deadlock |
-| `ADBService` | Fasad command ADB: menentukan lokasi binary, menjalankan command, menerjemahkan hasil ke model domain |
-| `DeviceListParser` | Mem-parse output `adb devices -l` |
-| `DeviceMonitor` | Polling berkala dan melaporkan perubahan status |
-| `AppCoordinator` | Menghubungkan monitor, status bar, dan aksi pengguna |
-| `StatusBarController` / `StatusMenuBuilder` | Memiliki `NSStatusItem` dan membangun dropdown `NSMenu` |
+| `ProcessManager` | Runs commands on a background queue with a timeout. Pipes are read asynchronously so large output cannot deadlock |
+| `ADBService` | ADB command facade: locates the binary, runs the command, translates the result into domain models |
+| `DeviceListParser` | Parses the output of `adb devices -l` |
+| `DeviceMonitor` | Polls on a timer and reports status changes |
+| `AppCoordinator` | Wires the monitor, the status bar, and user actions together |
+| `StatusBarController` / `StatusMenuBuilder` | Own the `NSStatusItem` and build the `NSMenu` dropdown |
 
-### Keputusan desain yang penting
+### Key design decisions
 
-- **Polling tidak pernah tumpang tindih.** `DeviceMonitor` menjadwalkan poll berikutnya *setelah* poll sebelumnya selesai (timer sekali pakai, bukan interval tetap). Refresh manual saat poll berjalan hanya menandai satu putaran tambahan.
-- **Timer tetap jalan saat menu terbuka.** Timer didaftarkan di mode run loop `.common`, sehingga daftar device terus diperbarui ketika menu sedang ditampilkan.
-- **Hanya perubahan yang memperbarui UI.** `onStatusChange` dipanggil jika status berbeda dari poll sebelumnya, jadi tidak ada kedipan menu.
-- **Menu diisi ulang di tempat.** `NSMenu` yang sama dikosongkan dan diisi lagi, bukan diganti, agar menu yang sedang terbuka tidak menutup.
-- **Tidak ada proses `adb` yang menggantung.** Setelah proses keluar, aplikasi menunggu EOF pipe maksimal 1 detik dengan satu batas bersama untuk stdout dan stderr, karena `adb` bisa meninggalkan daemon child yang masih memegang ujung pipe.
-- **Tanpa retain cycle.** Closure memakai referensi `weak`, dan `Process` serta collector pipe dibuat per-eksekusi lalu dilepas.
-- **Isolasi concurrency yang jelas.** Kode UI, `DeviceMonitor`, dan `AppCoordinator` bertanda `@MainActor`. Kode lintas-thread (`ProcessManager`) ditandai `@unchecked Sendable` dengan alasan di komentar. Hasilnya bersih pada `-strict-concurrency=complete` (Swift 5) maupun mode bahasa Swift 6.
-- **Entry point eksplisit.** `AppDelegate` ber-`@main` dengan `static func main()` sendiri, karena `@main` saja memanggil `NSApplicationMain` yang hanya membuat delegate jika ada nib, dan proyek ini tidak memakai nib.
+- **Polls never overlap.** `DeviceMonitor` schedules the next poll *after* the current one finishes, using a single-shot timer instead of a fixed interval. A manual refresh during a poll only flags one extra round.
+- **The timer keeps running while the menu is open.** The timer is registered in the `.common` run loop mode, so the device list keeps updating while the menu is displayed.
+- **Only changes update the UI.** `onStatusChange` fires only when the status differs from the previous poll, so the menu does not flicker.
+- **The menu is refilled in place.** The same `NSMenu` is emptied and filled again instead of being replaced, so an open menu does not close.
+- **No hanging `adb` processes.** After the process exits, the app waits for pipe EOF for at most 1 second, with one shared deadline for stdout and stderr, because `adb` can leave a daemon child that still holds the pipe.
+- **No retain cycles.** Closures capture `weak` references, and `Process` and the pipe collectors are created per run and released afterwards.
+- **Explicit concurrency isolation.** UI code, `DeviceMonitor`, and `AppCoordinator` are `@MainActor`. Cross-thread code (`ProcessManager`) is `@unchecked Sendable`, with the reason in a comment. The result is clean under `-strict-concurrency=complete` (Swift 5) and under the Swift 6 language mode.
+- **Explicit entry point.** `AppDelegate` is `@main` and defines its own `static func main()`. `@main` alone only calls `NSApplicationMain`, which creates the delegate only when a nib exists, and this project has no nib.
 
-### Menambah aksi daya baru
+### Adding a new power action
 
-`PowerAction` adalah `CaseIterable`: item menu, dialog konfirmasi, argumen adb, dan ketersediaan per status semuanya diturunkan dari enum itu. Menambah aksi (misalnya reboot ke recovery) cukup dengan menambah satu `case`, tanpa menyentuh `StatusMenuBuilder` atau `AlertPresenter`.
+`PowerAction` is `CaseIterable`. The menu items, the confirmation dialog, the adb arguments, and per-state availability are all derived from it. Adding an action (for example reboot to recovery) means adding one `case`. `StatusMenuBuilder` and `AlertPresenter` do not change.
 
-## Pengembangan
+## Development
 
 ### Build
 
@@ -238,26 +239,26 @@ ADBMonitor/
 xcodebuild -project ADBMonitor.xcodeproj -scheme ADBMonitor -configuration Debug build
 ```
 
-Proyek memakai `PBXFileSystemSynchronizedRootGroup`, jadi file Swift baru di folder `ADBMonitor/` otomatis masuk target tanpa mengedit `project.pbxproj`.
+The project uses `PBXFileSystemSynchronizedRootGroup`, so new Swift files under `ADBMonitor/` join the target automatically, without editing `project.pbxproj`.
 
-### Konfigurasi build yang perlu diketahui
+### Build settings to know about
 
-| Pengaturan | Nilai | Alasan |
+| Setting | Value | Reason |
 |---|---|---|
-| `MACOSX_DEPLOYMENT_TARGET` | `12.0` | Xcode 27 tidak lagi mendukung target di bawah 12.0 |
-| `ENABLE_APP_SANDBOX` | `NO` | Sandbox memblokir peluncuran `adb`. Konsekuensinya aplikasi tidak bisa dirilis lewat Mac App Store |
-| `INFOPLIST_KEY_LSUIElement` | `YES` | Aplikasi menu bar tanpa ikon Dock |
-| `SWIFT_VERSION` | `5.0` | Kode juga diuji lolos sebagai Swift 6 |
+| `MACOSX_DEPLOYMENT_TARGET` | `12.0` | Xcode 27 no longer supports targets below 12.0 |
+| `ENABLE_APP_SANDBOX` | `NO` | The sandbox blocks launching `adb`. As a result the app cannot ship through the Mac App Store |
+| `INFOPLIST_KEY_LSUIElement` | `YES` | Menu bar app with no Dock icon |
+| `SWIFT_VERSION` | `5.0` | The code is also checked to compile as Swift 6 |
 
-### Pengujian
+### Testing
 
-Belum ada test target di proyek. Namun semua kode di `Models/`, `Services/`, `Preferences/`, dan `Utils/` tidak bergantung pada AppKit, dan semua dependensinya berupa protokol (`ProcessRunning`, `ADBLocating`, `DeviceListParsing`, `ADBServicing`, `Scheduling`, dst.), sehingga mudah diuji dengan fake tanpa device sungguhan. Misalnya `DeviceMonitor` bisa diuji dengan `Scheduling` palsu yang dijalankan manual.
+There is no test target in the Xcode project yet. However, everything in `Models/`, `Services/`, `Preferences/`, and `Utils/` is free of AppKit, and all dependencies are protocols (`ProcessRunning`, `ADBLocating`, `DeviceListParsing`, `ADBServicing`, `Scheduling`, and so on). This makes the logic easy to test with fakes, without a real device. For example, `DeviceMonitor` can be tested with a fake `Scheduling` that you fire by hand.
 
-`DeviceMonitor` adalah `@MainActor`; pada harness uji berbasis `swiftc`, bungkus pemakaiannya dengan `MainActor.assumeIsolated { ... }`.
+`DeviceMonitor` is `@MainActor`. In a `swiftc`-based test harness, wrap its use in `MainActor.assumeIsolated { ... }`.
 
-### Lint dan pengecekan concurrency
+### Lint and concurrency checks
 
-Gaya kode: indentasi 4 spasi, lebar maksimum 120 karakter. Cek tambahan dengan compiler dalam mode ketat, keduanya harus bersih:
+Code style: 4-space indentation, 120-column limit. Also run the compiler in strict mode. Both commands must be clean:
 
 ```sh
 cd ADBMonitor && SDK=$(xcrun --show-sdk-path)
@@ -269,11 +270,11 @@ swiftc -typecheck -parse-as-library -sdk $SDK -target arm64-apple-macos12.0 \
        -swift-version 6 $FILES
 ```
 
-`xcrun swift-format lint --recursive .` juga bisa dipakai. Catatan `Indentation`/`AddLines` darinya sengaja diabaikan karena kode memakai perataan parameter gaya Xcode.
+`xcrun swift-format lint --recursive .` can also be used. Its `Indentation` and `AddLines` findings are intentionally ignored, because the code aligns multi-line parameter lists Xcode-style.
 
-### Format output `adb` yang ditangani parser
+### `adb` output formats handled by the parser
 
-`adb` versi berbeda menulis output sedikit berbeda, dan parser menangani keduanya:
+Different `adb` versions print slightly different output, and the parser handles both:
 
 ```
 R58M123ABC     device usb:1-1 product:o1sxxx model:SM_G991B device:o1s transport_id:2
@@ -281,48 +282,48 @@ R9CN4057BXJ    device 2-1 product:a10sxx model:SM_A107F device:a10s transport_id
 0123456789     no permissions (user in plugdev group; are your udev rules wrong?); see [url]
 ```
 
-Path USB bisa bertulis `usb:1-1` atau `2-1` tanpa prefix, dan status `no permissions` terdiri dari dua kata. Baris pesan daemon (diawali `*`) diabaikan.
+The USB path can be `usb:1-1` or a bare `2-1`, and the state `no permissions` is two words. Daemon message lines (starting with `*`) are ignored.
 
-## Pemecahan masalah
+## Troubleshooting
 
-**Ikon tidak muncul di menu bar.**
-Jika menu bar penuh, macOS bisa menyembunyikan item yang paling kiri. Tutup aplikasi menu bar lain atau perlebar ruang. Pastikan juga hanya satu instance yang berjalan.
+**The icon does not appear in the menu bar.**
+When the menu bar is full, macOS can hide the leftmost items. Quit other menu bar apps or free up space. Also make sure only one instance is running.
 
-**Menu menampilkan "ADB is not installed" padahal sudah terpasang.**
-Aplikasi GUI tidak membaca `PATH` dari `~/.zshrc`. Cek lokasi `adb` dengan `which adb`, lalu isi path itu di **Preferences → ADB path**.
+**The menu says "ADB is not installed" but it is installed.**
+GUI apps do not read the `PATH` from `~/.zshrc`. Find the location with `which adb`, then enter that path in **Preferences → ADB path**.
 
-**Device tampil sebagai Unauthorized.**
-Buka layar perangkat dan setujui prompt "Allow USB debugging". Jika tidak muncul, cabut dan colok ulang kabel, atau di perangkat pilih *Revoke USB debugging authorizations* lalu coba lagi.
+**A device shows as Unauthorized.**
+Look at the device screen and accept the "Allow USB debugging" prompt. If it does not appear, unplug and replug the cable, or on the device choose *Revoke USB debugging authorizations* and try again.
 
-**Device tampil sebagai Offline.**
-Colok ulang device, atau restart server adb dengan `adb kill-server && adb start-server`.
+**A device shows as Offline.**
+Replug the device, or restart the adb server with `adb kill-server && adb start-server`.
 
-**Pesan "adb server version doesn't match this client".**
-Ada dua versi `adb` yang berbeda berjalan bersamaan. Jalankan `adb kill-server`, lalu pastikan aplikasi memakai `adb` yang sama dengan yang Anda pakai di terminal (atur lewat Preferences).
+**The message "adb server version doesn't match this client".**
+Two different `adb` versions are running at the same time. Run `adb kill-server`, then make sure the app uses the same `adb` you use in the terminal (set it in Preferences).
 
-**Restart berhasil tetapi Shut Down gagal.**
-Sebagian vendor atau ROM menolak `reboot -p` dari shell tanpa root. Pesan error ditampilkan dalam dialog; matikan device secara manual dari perangkat.
+**Restart works but Shut Down fails.**
+Some vendors and ROMs reject `reboot -p` from the shell without root. The error is shown in a dialog. Power the device off manually.
 
-**Device wireless tidak terdeteksi.**
-Hubungkan dulu di terminal, misalnya `adb connect 192.168.1.5:5555` atau `adb pair`. ADB Monitor menampilkan apa yang dilaporkan `adb devices -l`; ia tidak melakukan koneksi sendiri.
+**A wireless device is not detected.**
+Connect it in the terminal first, for example `adb connect 192.168.1.5:5555` or `adb pair`. ADB Monitor shows what `adb devices -l` reports. It does not make connections itself.
 
-## Keterbatasan
+## Limitations
 
-- Belum ada rilis biner, notarisasi, atau auto-update.
-- Tidak bisa didistribusikan lewat Mac App Store karena App Sandbox dimatikan.
-- Tidak ada fitur "launch at login" bawaan.
-- Tidak ada notifikasi saat device terhubung atau terlepas; hanya ikon dan menu yang diperbarui.
-- Hanya Restart dan Shut Down. Reboot ke recovery atau bootloader belum ada (mudah ditambahkan, lihat [Menambah aksi daya baru](#menambah-aksi-daya-baru)).
-- Belum ada test target di proyek Xcode.
-- Teks antarmuka masih dalam bahasa Inggris.
+- No binary release, notarization, or auto-update yet.
+- Cannot be distributed through the Mac App Store because App Sandbox is turned off.
+- No built-in "launch at login" option.
+- No notification when a device connects or disconnects. Only the icon and the menu update.
+- Only Restart and Shut Down. Reboot to recovery or bootloader is not implemented (easy to add, see [Adding a new power action](#adding-a-new-power-action)).
+- No test target in the Xcode project yet.
+- The UI is English only (not localized).
 
-## Privasi dan keamanan
+## Privacy and security
 
-- Aplikasi tidak melakukan koneksi jaringan sendiri dan tidak mengirim telemetri. Satu-satunya hal yang dilakukannya adalah menjalankan `adb` lokal.
-- Pengaturan disimpan lokal di `UserDefaults`.
-- Karena tidak ber-sandbox, aplikasi bisa menjalankan binary apa pun yang Anda tunjuk di **ADB path**. Isi hanya dengan `adb` yang Anda percaya.
-- Restart dan Shut Down mengirim perintah ke device sungguhan; keduanya selalu meminta konfirmasi dahulu.
+- The app makes no network connections of its own and sends no telemetry. The only thing it does is run the local `adb`.
+- Settings are stored locally in `UserDefaults`.
+- Because the app is not sandboxed, it can run any binary you point it to in **ADB path**. Only enter an `adb` you trust.
+- Restart and Shut Down send commands to real devices. Both always ask for confirmation first.
 
-## Lisensi
+## License
 
-Belum ditentukan. Selama belum ada berkas lisensi, semua hak dimiliki penulis.
+Not decided yet. Until a license file is added, all rights are held by the author.

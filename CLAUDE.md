@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ADB Monitor is a macOS menu bar app (pure AppKit, no SwiftUI, no Dock icon) that polls `adb devices -l` and shows connected Android devices, with restart and shut down actions. Bundle ID: `com.mories.adb.ADBMonitor`. Deployment target: macOS 12.0. About 1.6k lines of Swift, no third-party dependencies.
 
-`README.md` is the user-facing documentation and is written in Indonesian. This file is the engineering reference.
+`README.md` is the user-facing documentation. This file is the engineering reference. Both are written in English; keep them in English.
 
 There are no Cursor, Copilot, or other agent rule files in the repo. There is no test target and no linter configuration.
 
