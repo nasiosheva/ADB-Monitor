@@ -36,27 +36,37 @@ struct ADBDevice: Equatable, Hashable {
             }
         }
 
-        var label: String {
+        /// Kunci teks untuk label status; `nil` untuk status yang tidak dikenal (ditampilkan apa adanya).
+        var labelKey: L10nKey? {
             switch self {
-            case .device: return "Connected"
-            case .offline: return "Offline"
-            case .unauthorized: return "Unauthorized"
-            case .noPermissions: return "No Permissions"
-            case .authorizing: return "Authorizing"
-            case .connecting: return "Connecting"
-            case .recovery: return "Recovery"
-            case .sideload: return "Sideload"
-            case .bootloader: return "Bootloader"
-            case .unknown(let raw): return raw.capitalized
+            case .device: return .stateConnected
+            case .offline: return .stateOffline
+            case .unauthorized: return .stateUnauthorized
+            case .noPermissions: return .stateNoPermissions
+            case .authorizing: return .stateAuthorizing
+            case .connecting: return .stateConnecting
+            case .recovery: return .stateRecovery
+            case .sideload: return .stateSideload
+            case .bootloader: return .stateBootloader
+            case .unknown: return nil
             }
         }
     }
 
-    enum Connection: String {
-        case usb = "USB"
-        case network = "Wi-Fi"
-        case emulator = "Emulator"
-        case unknown = "Unknown"
+    enum Connection {
+        case usb
+        case network
+        case emulator
+        case unknown
+
+        var labelKey: L10nKey {
+            switch self {
+            case .usb: return .connectionUSB
+            case .network: return .connectionWiFi
+            case .emulator: return .connectionEmulator
+            case .unknown: return .connectionUnknown
+            }
+        }
     }
 
     let serial: String

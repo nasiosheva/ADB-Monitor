@@ -7,26 +7,51 @@
 
 import AppKit
 
-/// Jendela Preferences: path ADB kustom dan interval refresh.
-final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate {
+/// Abstraksi jendela Preferences, supaya `AppCoordinator` bisa diuji tanpa menampilkan jendela sungguhan.
+@MainActor
+protocol PreferencesPresenting: AnyObject {
+    /// Memuat nilai tersimpan lalu menampilkan jendela di depan.
+    func present()
+}
+
+/// Jendela Preferences: path ADB kustom, interval refresh, bahasa, dan launch at login.
+final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate, PreferencesPresenting {
 
     private let preferences: PreferencesStoring
     private let locator: ADBLocating
+    private let launchAtLogin: LaunchAtLoginControlling
+    private let l10n: Localizing
+
+    // Label statis disimpan agar teksnya bisa diganti ketika bahasa berubah.
+    private let pathTitle = NSTextField(labelWithString: "")
+    private let intervalTitle = NSTextField(labelWithString: "")
+    private let languageTitle = NSTextField(labelWithString: "")
+    private let startupTitle = NSTextField(labelWithString: "")
+    private let chooseButton = NSButton(title: "", target: nil, action: nil)
+    private let cancelButton = NSButton(title: "", target: nil, action: nil)
+    private let saveButton = NSButton(title: "", target: nil, action: nil)
 
     private let pathField = NSTextField()
     private let detectedLabel = NSTextField(labelWithString: "")
     private let intervalStepper = NSStepper()
     private let intervalLabel = NSTextField(labelWithString: "")
+    private let languagePopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let launchCheckbox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let launchNote = NSTextField(labelWithString: "")
 
-    init(preferences: PreferencesStoring, locator: ADBLocating) {
+    init(preferences: PreferencesStoring,
+         locator: ADBLocating,
+         launchAtLogin: LaunchAtLoginControlling,
+         localizer: Localizing) {
         self.preferences = preferences
         self.locator = locator
+        self.launchAtLogin = launchAtLogin
+        self.l10n = localizer
 
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 190),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 290),
                               styleMask: [.titled, .closable],
                               backing: .buffered,
                               defer: false)
-        window.title = "ADB Monitor Preferences"
         window.isReleasedWhenClosed = false
         super.init(window: window)
 
@@ -37,9 +62,9 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         fatalError("init(coder:) is not supported")
     }
 
-    /// Memuat nilai tersimpan lalu menampilkan jendela di depan.
     func present() {
         guard let window = window else { return }
+        applyLocalizedStrings()
         loadStoredValues()
 
         if !window.isVisible { window.center() }
@@ -52,9 +77,12 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
 
     private func makeContent() -> NSView {
         let form = NSGridView(views: [
-            [NSTextField(labelWithString: "ADB path:"), makePathRow()],
+            [pathTitle, makePathRow()],
             [NSGridCell.emptyContentView, makeDetectedLabel()],
-            [NSTextField(labelWithString: "Refresh interval:"), makeIntervalRow()],
+            [intervalTitle, makeIntervalRow()],
+            [languageTitle, languagePopup],
+            [startupTitle, launchCheckbox],
+            [NSGridCell.emptyContentView, makeLaunchNote()],
         ])
         form.rowSpacing = 10
         form.columnSpacing = 10
@@ -69,11 +97,13 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     }
 
     private func makePathRow() -> NSView {
-        pathField.placeholderString = "Auto-detect (leave empty)"
         pathField.delegate = self
         pathField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        // Tanpa lebar minimum, lebar kolom ikut teks catatan di bawahnya dan isian bisa menyempit jadi ~70 pt.
+        pathField.widthAnchor.constraint(greaterThanOrEqualToConstant: 220).isActive = true
 
-        let chooseButton = NSButton(title: "Choose…", target: self, action: #selector(chooseADB))
+        chooseButton.target = self
+        chooseButton.action = #selector(chooseADB)
         return horizontalStack([pathField, chooseButton], spacing: 8)
     }
 
@@ -81,6 +111,13 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         detectedLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         detectedLabel.lineBreakMode = .byTruncatingMiddle
         return detectedLabel
+    }
+
+    private func makeLaunchNote() -> NSView {
+        launchNote.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        launchNote.textColor = .secondaryLabelColor
+        launchNote.lineBreakMode = .byTruncatingTail
+        return launchNote
     }
 
     private func makeIntervalRow() -> NSView {
@@ -93,7 +130,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         intervalStepper.action = #selector(intervalChanged)
 
         intervalLabel.alignment = .right
-        intervalLabel.widthAnchor.constraint(equalToConstant: 48).isActive = true
+        intervalLabel.widthAnchor.constraint(equalToConstant: 64).isActive = true
         return horizontalStack([intervalLabel, intervalStepper], spacing: 6)
     }
 
@@ -101,9 +138,11 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         let spacer = NSView()
         spacer.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
 
-        let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancel))
+        cancelButton.target = self
+        cancelButton.action = #selector(cancel)
         cancelButton.keyEquivalent = "\u{1b}"
-        let saveButton = NSButton(title: "Save", target: self, action: #selector(save))
+        saveButton.target = self
+        saveButton.action = #selector(save)
         saveButton.keyEquivalent = "\r"
 
         return horizontalStack([spacer, cancelButton, saveButton], spacing: 8)
@@ -127,6 +166,43 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         ])
     }
 
+    // MARK: - Localization
+
+    /// Menerapkan bahasa yang sedang aktif ke semua teks statis. Dipanggil setiap jendela dibuka,
+    /// karena bahasa bisa berubah saat jendela tertutup.
+    private func applyLocalizedStrings() {
+        window?.title = l10n.text(.prefsWindowTitle)
+        pathTitle.stringValue = l10n.text(.prefsAdbPath)
+        intervalTitle.stringValue = l10n.text(.prefsRefreshInterval)
+        languageTitle.stringValue = l10n.text(.prefsLanguage)
+        startupTitle.stringValue = l10n.text(.prefsStartup)
+        pathField.placeholderString = l10n.text(.prefsAdbPlaceholder)
+        chooseButton.title = l10n.text(.prefsChoose)
+        cancelButton.title = l10n.text(.commonCancel)
+        saveButton.title = l10n.text(.prefsSave)
+        launchCheckbox.title = l10n.text(.prefsLaunchAtLogin)
+    }
+
+    private func rebuildLanguageMenu(selecting preference: LanguagePreference) {
+        languagePopup.removeAllItems()
+        languagePopup.addItem(withTitle: l10n.text(.prefsLanguageSystem))
+        AppLanguage.allCases.forEach { languagePopup.addItem(withTitle: $0.autonym) }
+
+        switch preference {
+        case .system:
+            languagePopup.selectItem(at: 0)
+        case .explicit(let language):
+            let index = AppLanguage.allCases.firstIndex(of: language).map { $0 + 1 } ?? 0
+            languagePopup.selectItem(at: index)
+        }
+    }
+
+    private func selectedLanguagePreference() -> LanguagePreference {
+        let index = languagePopup.indexOfSelectedItem - 1   // item 0 adalah "ikuti sistem"
+        guard AppLanguage.allCases.indices.contains(index) else { return .system }
+        return .explicit(AppLanguage.allCases[index])
+    }
+
     // MARK: - State
 
     private func loadStoredValues() {
@@ -134,19 +210,49 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         intervalStepper.doubleValue = preferences.refreshInterval
         updateIntervalLabel()
         updateDetectedLabel()
+        rebuildLanguageMenu(selecting: preferences.languagePreference)
+        loadLaunchAtLogin()
+    }
+
+    /// Status login item dibaca ulang dari sistem setiap jendela dibuka, karena bisa berubah di System Settings.
+    private func loadLaunchAtLogin() {
+        let status = launchAtLogin.status
+        launchCheckbox.state = status.isOn ? .on : .off
+        launchCheckbox.isEnabled = status != .unsupported
+
+        switch status {
+        case .unsupported:
+            launchNote.stringValue = l10n.text(.prefsLaunchUnsupported)
+        case .requiresApproval:
+            launchNote.stringValue = l10n.text(.prefsLaunchApproval)
+        case .enabled, .disabled:
+            launchNote.stringValue = ""
+        }
+    }
+
+    /// Mengembalikan error jika perubahan ditolak sistem; `nil` jika berhasil atau tidak ada yang berubah.
+    private func applyLaunchAtLogin() -> Error? {
+        let wanted = launchCheckbox.state == .on
+        guard launchCheckbox.isEnabled, wanted != launchAtLogin.status.isOn else { return nil }
+        do {
+            try launchAtLogin.setEnabled(wanted)
+            return nil
+        } catch {
+            return error
+        }
     }
 
     private func updateIntervalLabel() {
-        intervalLabel.stringValue = "\(Int(intervalStepper.doubleValue)) s"
+        intervalLabel.stringValue = l10n.text(.prefsSeconds, String(Int(intervalStepper.doubleValue)))
     }
 
     private func updateDetectedLabel() {
         let custom = pathField.stringValue.trimmed
         if let found = locator.locate(customPath: custom.isEmpty ? nil : custom) {
-            detectedLabel.stringValue = "Using: \(found)"
+            detectedLabel.stringValue = l10n.text(.prefsUsing, found)
             detectedLabel.textColor = .secondaryLabelColor
         } else {
-            detectedLabel.stringValue = custom.isEmpty ? "ADB not found" : "Not an executable file"
+            detectedLabel.stringValue = l10n.text(custom.isEmpty ? .prefsAdbNotFound : .prefsNotExecutable)
             detectedLabel.textColor = .systemRed
         }
     }
@@ -161,7 +267,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
 
     @objc private func chooseADB() {
         let panel = NSOpenPanel()
-        panel.title = "Select adb executable"
+        panel.title = l10n.text(.prefsSelectAdbPanel)
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
@@ -180,7 +286,27 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     }
 
     @objc private func save() {
-        preferences.save(adbPath: pathField.stringValue, refreshInterval: intervalStepper.doubleValue)
+        preferences.save(adbPath: pathField.stringValue,
+                         refreshInterval: intervalStepper.doubleValue,
+                         language: selectedLanguagePreference())
+
+        if let error = applyLaunchAtLogin() {
+            // Pengaturan lain sudah tersimpan; jendela tetap terbuka agar pengguna melihat kegagalan ini.
+            applyLocalizedStrings()   // bahasa mungkin baru saja berubah
+            loadStoredValues()
+            showLaunchAtLoginError(error)
+            return
+        }
         window?.close()
+    }
+
+    private func showLaunchAtLoginError(_ error: Error) {
+        guard let window = window else { return }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = (error as? LaunchAtLoginError) == .unsupported
+            ? l10n.text(.errorLaunchAtLoginUnsupported)
+            : error.localizedDescription
+        alert.beginSheetModal(for: window)
     }
 }

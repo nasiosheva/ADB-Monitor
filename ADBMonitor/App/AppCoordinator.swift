@@ -15,23 +15,26 @@ final class AppCoordinator: StatusMenuActionHandling {
     private let monitor: DeviceMonitoring
     private let service: ADBServicing
     private let alerts: AlertPresenting
-    private let makePreferencesWindow: @MainActor () -> PreferencesWindowController
+    private let makeStatusBar: @MainActor (StatusMenuActionHandling) -> StatusBarRendering
+    private let makePreferencesWindow: @MainActor () -> PreferencesPresenting
 
-    private var statusBar: StatusBarController?
+    private var statusBar: StatusBarRendering?
     private lazy var preferencesWindow = makePreferencesWindow()
 
     init(monitor: DeviceMonitoring,
          service: ADBServicing,
          alerts: AlertPresenting,
-         makePreferencesWindow: @escaping @MainActor () -> PreferencesWindowController) {
+         makeStatusBar: @escaping @MainActor (StatusMenuActionHandling) -> StatusBarRendering,
+         makePreferencesWindow: @escaping @MainActor () -> PreferencesPresenting) {
         self.monitor = monitor
         self.service = service
         self.alerts = alerts
+        self.makeStatusBar = makeStatusBar
         self.makePreferencesWindow = makePreferencesWindow
     }
 
     func start() {
-        let statusBar = StatusBarController(actionHandler: self)
+        let statusBar = makeStatusBar(self)
         self.statusBar = statusBar
 
         monitor.onStatusChange = { [weak statusBar] status in
@@ -65,7 +68,7 @@ final class AppCoordinator: StatusMenuActionHandling {
             guard let self = self else { return }
             self.monitor.refresh()  // daftar device segera diperbarui, tanpa menunggu poll berikutnya
             if case .failure(let error) = result {
-                self.alerts.showFailure(of: action, on: device, message: error.message)
+                self.alerts.showFailure(of: action, on: device, error: error)
             }
         }
     }

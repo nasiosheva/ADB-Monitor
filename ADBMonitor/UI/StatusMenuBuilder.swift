@@ -26,9 +26,11 @@ final class StatusMenuBuilder: NSObject {
     }
 
     private weak var handler: StatusMenuActionHandling?
+    private let l10n: Localizing
 
-    init(handler: StatusMenuActionHandling) {
+    init(handler: StatusMenuActionHandling, localizer: Localizing) {
         self.handler = handler
+        self.l10n = localizer
         super.init()
     }
 
@@ -42,37 +44,40 @@ final class StatusMenuBuilder: NSObject {
     // MARK: - Status section
 
     private func statusItems(for status: ADBStatus?) -> [NSMenuItem] {
-        guard let status = status else { return [.info("Checking for devices…")] }
+        guard let status = status else { return [.info(l10n.text(.menuChecking))] }
 
         switch status {
         case .devices(let devices):
             return deviceListItems(for: devices)
         case .adbNotFound(let customPath):
             return adbNotFoundItems(customPath: customPath)
-        case .failure(let message):
-            return [.info("ADB error"), .info(message)]
+        case .failure(let error):
+            return [.info(l10n.text(.menuAdbError)), .info(l10n.message(for: error))]
         }
     }
 
     private func deviceListItems(for devices: [ADBDevice]) -> [NSMenuItem] {
-        guard !devices.isEmpty else { return [.info("No devices connected")] }
-        return [.info("Android Devices (\(devices.count))"), .separator()] + devices.map(deviceItem)
+        guard !devices.isEmpty else { return [.info(l10n.text(.menuNoDevices))] }
+        return [.info(l10n.text(.menuDevicesHeader, String(devices.count))), .separator()] + devices.map(deviceItem)
     }
 
     private func adbNotFoundItems(customPath: String?) -> [NSMenuItem] {
         if let customPath = customPath {
-            return [.info("ADB not found at custom path:"), .info(customPath), .info("Fix it in Preferences.")]
+            return [.info(l10n.text(.menuAdbCustomMissing)),
+                    .info(customPath),
+                    .info(l10n.text(.menuAdbFixInPreferences)),
+            ]
         }
-        return [.info("ADB is not installed"),
-                .info("Install it (brew install android-platform-tools)"),
-                .info("or set its path in Preferences."),
+        return [.info(l10n.text(.menuAdbNotInstalled)),
+                .info(l10n.text(.menuAdbInstallHint)),
+                .info(l10n.text(.menuAdbSetPathHint)),
         ]
     }
 
     // MARK: - Device item
 
     private func deviceItem(for device: ADBDevice) -> NSMenuItem {
-        let title = "\(device.displayName) (\(device.serial)) — \(device.state.label)"
+        let title = "\(device.displayName) (\(device.serial)) — \(l10n.label(for: device.state))"
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.attributedTitle = device.state.menuTitle(title)
         item.toolTip = device.serial
@@ -84,9 +89,9 @@ final class StatusMenuBuilder: NSObject {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        var items = detailRows(for: device).map { NSMenuItem.info("\($0.label): \($0.value)") }
-        if let hint = device.state.hint {
-            items += [.separator(), .info(hint)]
+        var items = detailRows(for: device).map { NSMenuItem.info(l10n.text(.labelValue, $0.label, $0.value)) }
+        if let hintKey = device.state.hintKey {
+            items += [.separator(), .info(l10n.text(hintKey))]
         }
         items += [.separator(), copySerialItem(for: device)] + powerItems(for: device)
 
@@ -95,26 +100,26 @@ final class StatusMenuBuilder: NSObject {
     }
 
     private func detailRows(for device: ADBDevice) -> [(label: String, value: String)] {
-        let rows: [(String, String?)] = [
-            ("Status", device.state.label),
-            ("Serial", device.serial),
-            ("Connection", device.connection.rawValue),
-            ("Model", device.model),
-            ("Product", device.product),
-            ("Device", device.deviceName),
-            ("Transport ID", device.transportID),
+        let rows: [(L10nKey, String?)] = [
+            (.detailStatus, l10n.label(for: device.state)),
+            (.detailSerial, device.serial),
+            (.detailConnection, l10n.name(of: device.connection)),
+            (.detailModel, device.model),
+            (.detailProduct, device.product),
+            (.detailDevice, device.deviceName),
+            (.detailTransportID, device.transportID),
         ]
-        return rows.compactMap { label, value in value.map { (label: label, value: $0) } }
+        return rows.compactMap { key, value in value.map { (label: l10n.text(key), value: $0) } }
     }
 
     private func copySerialItem(for device: ADBDevice) -> NSMenuItem {
-        .command("Copy Serial Number", action: #selector(copySerialSelected(_:)), target: self,
+        .command(l10n.text(.menuCopySerial), action: #selector(copySerialSelected(_:)), target: self,
                  representedObject: device.serial)
     }
 
     private func powerItems(for device: ADBDevice) -> [NSMenuItem] {
         PowerAction.allCases.map { action in
-            let item = NSMenuItem.command(action.menuTitle,
+            let item = NSMenuItem.command(l10n.text(action.menuTitleKey),
                                           action: #selector(powerActionSelected(_:)),
                                           target: self,
                                           representedObject: PowerRequest(action: action, device: device))
@@ -127,10 +132,10 @@ final class StatusMenuBuilder: NSObject {
 
     private func commandItems() -> [NSMenuItem] {
         [
-            .command("Refresh", action: #selector(refreshSelected), target: self, key: "r"),
-            .command("Preferences…", action: #selector(preferencesSelected), target: self, key: ","),
+            .command(l10n.text(.menuRefresh), action: #selector(refreshSelected), target: self, key: "r"),
+            .command(l10n.text(.menuPreferences), action: #selector(preferencesSelected), target: self, key: ","),
             .separator(),
-            .command("Quit ADB Monitor", action: #selector(quitSelected), target: self, key: "q"),
+            .command(l10n.text(.menuQuit), action: #selector(quitSelected), target: self, key: "q"),
         ]
     }
 

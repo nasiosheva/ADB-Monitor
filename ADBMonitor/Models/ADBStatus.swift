@@ -11,7 +11,7 @@ import Foundation
 enum ADBStatus: Equatable {
     case devices([ADBDevice])
     case adbNotFound(customPath: String?)
-    case failure(String)
+    case failure(ADBError)
 
     init(result: Result<[ADBDevice], ADBError>) {
         switch result {
@@ -20,7 +20,7 @@ enum ADBStatus: Equatable {
         case .failure(.notFound(let customPath)):
             self = .adbNotFound(customPath: customPath)
         case .failure(let error):
-            self = .failure(error.message)
+            self = .failure(error)
         }
     }
 }

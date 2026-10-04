@@ -18,9 +18,13 @@ protocol RefreshIntervalProviding {
     var refreshInterval: TimeInterval { get }
 }
 
-protocol PreferencesStoring: ADBPathProviding, RefreshIntervalProviding {
+protocol LanguageProviding {
+    var languagePreference: LanguagePreference { get }
+}
+
+protocol PreferencesStoring: ADBPathProviding, RefreshIntervalProviding, LanguageProviding {
     /// Menyimpan pengaturan lalu memposting `.preferencesDidChange`.
-    func save(adbPath: String?, refreshInterval: TimeInterval)
+    func save(adbPath: String?, refreshInterval: TimeInterval, language: LanguagePreference)
 }
 
 enum RefreshIntervalLimits {

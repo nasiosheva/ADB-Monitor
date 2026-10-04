@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct ProcessOutput {
+struct ProcessOutput: Equatable {
     let stdout: String
     let stderr: String
     let exitCode: Int32

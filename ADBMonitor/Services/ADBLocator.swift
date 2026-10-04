@@ -15,7 +15,7 @@ protocol ADBLocating {
 
 struct ADBLocator: ADBLocating {
 
-    private static let wellKnownPaths = [
+    static let defaultWellKnownPaths = [
         "/opt/homebrew/bin/adb",
         "/usr/local/bin/adb",
         "/usr/bin/adb",
@@ -24,13 +24,17 @@ struct ADBLocator: ADBLocating {
     private let environment: [String: String]
     private let fileManager: FileManager
     private let homeDirectory: String
+    private let wellKnownPaths: [String]
 
+    /// `wellKnownPaths` bisa diganti agar hasil pencarian tidak bergantung pada isi disk (dipakai oleh pengujian).
     init(environment: [String: String] = ProcessInfo.processInfo.environment,
          fileManager: FileManager = .default,
-         homeDirectory: String = NSHomeDirectory()) {
+         homeDirectory: String = NSHomeDirectory(),
+         wellKnownPaths: [String] = ADBLocator.defaultWellKnownPaths) {
         self.environment = environment
         self.fileManager = fileManager
         self.homeDirectory = homeDirectory
+        self.wellKnownPaths = wellKnownPaths
     }
 
     func locate(customPath: String?) -> String? {
@@ -49,6 +53,6 @@ struct ADBLocator: ADBLocating {
             .map { "\($0)/platform-tools/adb" }
         let defaultSDK = "\(homeDirectory)/Library/Android/sdk/platform-tools/adb"
 
-        return searchPath + Self.wellKnownPaths + sdkRoots + [defaultSDK]
+        return searchPath + wellKnownPaths + sdkRoots + [defaultSDK]
     }
 }

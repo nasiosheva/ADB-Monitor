@@ -12,14 +12,6 @@ enum ADBError: Error, Equatable {
     case notFound(customPath: String?)
     case timedOut
     case launchFailed(String)
+    /// Keluaran error mentah dari `adb`; tidak diterjemahkan.
     case commandFailed(String)
-
-    var message: String {
-        switch self {
-        case .notFound: return "ADB not found."
-        case .timedOut: return "adb did not respond (timed out)."
-        case .launchFailed(let reason): return "Failed to launch adb: \(reason)"
-        case .commandFailed(let reason): return reason
-        }
-    }
 }

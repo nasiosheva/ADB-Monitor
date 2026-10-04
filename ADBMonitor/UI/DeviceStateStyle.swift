@@ -19,12 +19,12 @@ extension ADBDevice.State {
         }
     }
 
-    /// Petunjuk untuk pengguna jika state memerlukan tindakan.
-    var hint: String? {
+    /// Kunci petunjuk untuk pengguna jika state memerlukan tindakan.
+    var hintKey: L10nKey? {
         switch self {
-        case .unauthorized: return "Accept the USB debugging prompt on the device."
-        case .noPermissions: return "Check USB permissions / udev rules."
-        case .offline: return "Reconnect the device or restart the adb server."
+        case .unauthorized: return .hintUnauthorized
+        case .noPermissions: return .hintNoPermissions
+        case .offline: return .hintOffline
         default: return nil
         }
     }

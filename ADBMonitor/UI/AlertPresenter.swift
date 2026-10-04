@@ -11,27 +11,32 @@ import AppKit
 protocol AlertPresenting {
     /// `true` jika pengguna menyetujui. Memblokir sampai dialog ditutup.
     func confirm(_ action: PowerAction, on device: ADBDevice) -> Bool
-    func showFailure(of action: PowerAction, on device: ADBDevice, message: String)
+    func showFailure(of action: PowerAction, on device: ADBDevice, error: ADBError)
 }
 
 @MainActor
 struct AppKitAlertPresenter: AlertPresenting {
 
+    private let l10n: Localizing
+
+    init(localizer: Localizing) {
+        self.l10n = localizer
+    }
+
     func confirm(_ action: PowerAction, on device: ADBDevice) -> Bool {
         let alert = NSAlert()
-        alert.messageText = "\(action.verb) \(device.displayName)?"
-        alert.informativeText = "The device (\(device.serial)) \(action.consequence) "
-            + "Unsaved work on the device may be lost."
+        alert.messageText = l10n.text(action.confirmTitleKey, device.displayName)
+        alert.informativeText = l10n.text(action.confirmBodyKey, device.serial)
         alert.alertStyle = .warning
-        alert.addButton(withTitle: action.verb)
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: l10n.text(action.verbKey))
+        alert.addButton(withTitle: l10n.text(.commonCancel))
         return run(alert) == .alertFirstButtonReturn
     }
 
-    func showFailure(of action: PowerAction, on device: ADBDevice, message: String) {
+    func showFailure(of action: PowerAction, on device: ADBDevice, error: ADBError) {
         let alert = NSAlert()
-        alert.messageText = "Could not \(action.verb.lowercased()) \(device.displayName)"
-        alert.informativeText = message
+        alert.messageText = l10n.text(action.failureTitleKey, device.displayName)
+        alert.informativeText = l10n.message(for: error)
         alert.alertStyle = .critical
         _ = run(alert)
     }

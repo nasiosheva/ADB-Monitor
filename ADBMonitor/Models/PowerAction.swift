@@ -21,25 +21,43 @@ enum PowerAction: CaseIterable {
         }
     }
 
-    var menuTitle: String {
+    // Kunci teks, bukan teks jadi: terjemahannya ada di `Localization/` dan mengikuti bahasa yang dipilih.
+
+    var menuTitleKey: L10nKey {
         switch self {
-        case .restart: return "Restart Device…"
-        case .shutdown: return "Shut Down Device…"
+        case .restart: return .powerRestartMenu
+        case .shutdown: return .powerShutdownMenu
         }
     }
 
-    var verb: String {
+    var verbKey: L10nKey {
         switch self {
-        case .restart: return "Restart"
-        case .shutdown: return "Shut Down"
+        case .restart: return .powerRestartVerb
+        case .shutdown: return .powerShutdownVerb
         }
     }
 
-    /// Kelanjutan kalimat "The device (<serial>) …" pada dialog konfirmasi.
-    var consequence: String {
+    /// Judul dialog konfirmasi; argumen: nama device.
+    var confirmTitleKey: L10nKey {
         switch self {
-        case .restart: return "will reboot immediately."
-        case .shutdown: return "will power off immediately and cannot be turned back on from this Mac."
+        case .restart: return .powerRestartConfirmTitle
+        case .shutdown: return .powerShutdownConfirmTitle
+        }
+    }
+
+    /// Isi dialog konfirmasi; argumen: serial device.
+    var confirmBodyKey: L10nKey {
+        switch self {
+        case .restart: return .powerRestartConfirmBody
+        case .shutdown: return .powerShutdownConfirmBody
+        }
+    }
+
+    /// Judul dialog gagal; argumen: nama device.
+    var failureTitleKey: L10nKey {
+        switch self {
+        case .restart: return .powerRestartFailureTitle
+        case .shutdown: return .powerShutdownFailureTitle
         }
     }
 

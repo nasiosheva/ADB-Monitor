@@ -25,6 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Saat dijadikan host unit test, jangan membuat item menu bar atau menjalankan adb sungguhan.
+        guard NSClassFromString("XCTestCase") == nil else { return }
+
         NSApp.setActivationPolicy(.accessory)  // menu bar saja, tanpa ikon Dock
         NSApp.mainMenu = MainMenuBuilder.build()
 
@@ -40,6 +43,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makeCoordinator() -> AppCoordinator {
         let preferences = UserDefaultsPreferences()
         let locator = ADBLocator()
+        let launchAtLogin = LaunchAtLogin.makeDefault()
+        let localizer = Localizer(provider: preferences)
         let service = ADBService(pathProvider: preferences,
                                  locator: locator,
                                  parser: DeviceListParser(),
@@ -49,12 +54,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                     scheduler: RunLoopScheduler())
 
         let makePreferencesWindow: @MainActor () -> PreferencesWindowController = {
-            PreferencesWindowController(preferences: preferences, locator: locator)
+            PreferencesWindowController(preferences: preferences,
+                                        locator: locator,
+                                        launchAtLogin: launchAtLogin,
+                                        localizer: localizer)
         }
 
         return AppCoordinator(monitor: monitor,
                               service: service,
-                              alerts: AppKitAlertPresenter(),
+                              alerts: AppKitAlertPresenter(localizer: localizer),
+                              makeStatusBar: { StatusBarController(actionHandler: $0, localizer: localizer) },
                               makePreferencesWindow: makePreferencesWindow)
     }
 }
