@@ -14,6 +14,7 @@ ADB Monitor is a macOS menu bar app (pure AppKit, no Dock icon). It runs `adb de
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Wi-Fi debugging](#wi-fi-debugging)
 - [Preferences](#preferences)
 - [Languages](#languages)
 - [Device states](#device-states)
@@ -31,6 +32,8 @@ ADB Monitor is a macOS menu bar app (pure AppKit, no Dock icon). It runs `adb de
 - **Device list** with model name, serial, and connection state, marked with a colored dot (green, orange, red, gray).
 - **Per-device detail submenu**: state, serial, connection type (USB, Wi-Fi, Emulator), model, product, device name, and transport ID.
 - **Copy serial** with one click.
+- **Open Developer Options** on the device screen from the device submenu.
+- **Wi-Fi debugging** (see [Wi-Fi debugging](#wi-fi-debugging)): detects devices on your network, connects, pairs (Android 11+), disconnects, and switches a USB device to Wi-Fi.
 - **Restart and Shut Down** with a confirmation dialog. Commands go only to the selected device (`adb -s <serial>`).
 - **Auto-refresh**: the menu updates when a device is plugged in or unplugged, even while the menu is open.
 - **Error handling** for a missing ADB install, a bad custom path, `adb` errors, and `adb` timeouts.
@@ -107,9 +110,15 @@ Device: sargo
 Transport ID: 2
 ─────────────────────────────
 Copy Serial Number
+Switch to Wi-Fi
+Open Developer Options
 Restart Device…
 Shut Down Device…
 ```
+
+### Open Developer Options
+
+Runs `adb -s <serial> shell am start -a android.settings.APPLICATION_DEVELOPMENT_SETTINGS`, which opens the Developer options screen on the phone. It needs no confirmation, is available for devices in the Connected state (USB or Wi-Fi), and does not change anything on the device. If the phone has no matching screen, the error from Android is shown in a dialog.
 
 ### Restart and Shut Down
 
@@ -132,6 +141,37 @@ These work while the menu is open.
 | ⌘, | Open Preferences |
 | ⌘Q | Quit |
 
+## Wi-Fi debugging
+
+ADB Monitor shows devices that are already connected over Wi-Fi (marked "Wi-Fi") and can set up new connections.
+
+| Menu item | What it does | adb command |
+|---|---|---|
+| **Available over Wi-Fi (n)** | Devices found on the network that are not connected yet. Click one to connect | `adb mdns services`, `adb connect` |
+| **Pair with …** | A device that is waiting for a pairing code. Opens the pairing dialog with the address filled in | `adb pair` |
+| **Connect to IP Address…** | Type `host` or `host:port` (default port 5555) | `adb connect` |
+| **Pair Device…** | Type the pairing address and the 6-digit code | `adb pair` |
+| Device submenu → **Disconnect** | For devices connected over Wi-Fi | `adb disconnect <serial>` |
+| Device submenu → **Switch to Wi-Fi** | For a ready device connected by USB | `adb tcpip 5555`, then `adb connect` |
+
+**Android 11 and later (Wireless debugging):**
+
+1. On the phone open Developer options → Wireless debugging and turn it on.
+2. Choose **Pair device with pairing code**. The phone shows an address (IP and port) and a 6-digit code.
+3. In ADB Monitor choose **Pair with …** if the phone is listed, or **Pair Device…** and type the address and code.
+4. After pairing, the phone shows up under **Available over Wi-Fi**. Click it to connect.
+
+**Any Android version, with a USB cable:** plug the phone in and choose **Switch to Wi-Fi** in its submenu. The app reads the phone's Wi-Fi IP address, runs `adb tcpip 5555`, and connects with a few retries while `adbd` restarts. You can then unplug the cable. The phone stays in TCP mode until it is rebooted.
+
+Notes:
+
+- The phone and the Mac must be on the same network. Guest and office networks often isolate devices or block mDNS. Discovery then finds nothing, but **Connect to IP Address…** still works if you know the address.
+- The Wireless debugging port changes every time you turn it on, and pairing codes expire quickly.
+- IPv6 addresses are not supported; use the IPv4 address.
+- macOS may ask for **Local Network** access the first time devices are discovered or connected. Allow it, or Wi-Fi connections can fail with "No route to host".
+- `adb connect` and `adb tcpip` are not encrypted. Only use them on networks you trust. Pairing (Android 11+) uses TLS.
+- Discovery runs on every poll. Turn it off with **Detect devices on Wi-Fi** in Preferences if you do not need it.
+
 ## Preferences
 
 Open it from **Preferences…** in the menu (⌘,).
@@ -141,6 +181,7 @@ Open it from **Preferences…** in the menu (⌘,).
 | **ADB path** | Leave empty for auto-detection. Set it to use a specific binary. **Choose…** opens a file picker. The label under the field shows the path that will be used, or an error message. |
 | **Refresh interval** | Delay between polls, 1–60 seconds (default 3). |
 | **Language** | **System default** or one of the five languages. Applied on **Save**; the menu and dialogs switch immediately, with no restart. |
+| **Detect devices on Wi-Fi** | Looks for devices on the network with mDNS on every poll (default on). Manual connect and pair are always available. |
 | **Launch at login** | Registers the app as a login item (macOS 13+). On macOS 12 the checkbox is disabled with a hint. If macOS asks for approval, the hint points to **System Settings → General → Login Items**. |
 
 Changes take effect right after **Save**: the app refreshes immediately with the new settings.
@@ -156,7 +197,7 @@ GUI apps do not inherit the `PATH` from your shell, so `adb` is searched for in 
 
 If you set a custom **ADB path** and it is invalid, the app does **not** silently fall back to auto-detection. The menu shows "ADB not found at custom path" so the mistake is visible.
 
-Settings are stored in `UserDefaults` (keys `adbPath`, `refreshInterval`, and `language`). The launch-at-login state is not stored by the app: it is always read from macOS, because you can also change it in System Settings.
+Settings are stored in `UserDefaults` (keys `adbPath`, `refreshInterval`, `language`, and `wirelessDiscovery`). The launch-at-login state is not stored by the app: it is always read from macOS, because you can also change it in System Settings.
 
 ## Languages
 
@@ -218,13 +259,14 @@ flowchart LR
 
 ```
 ADBMonitor/
-├── App/            AppDelegate (entry point + composition root), AppCoordinator, MainMenuBuilder
-├── Models/         ADBDevice, ADBStatus, ADBError, PowerAction
-├── Services/       ADBService, ADBLocator, DeviceListParser, DeviceMonitor, Scheduler, LaunchAtLogin
+├── App/            AppDelegate (entry point + composition root), AppCoordinator, WirelessCoordinator, MainMenuBuilder
+├── Models/         ADBDevice, ADBStatus, ADBError, PowerAction, WirelessService, WirelessAddress
+├── Services/       ADBService (+ Wireless), ADBLocator, DeviceListParser, WirelessServiceParser, WiFiAddressParser,
+│                   DeviceMonitor, WirelessSwitcher, Scheduler, LaunchAtLogin
 ├── Localization/   AppLanguage, L10nKey, Localizer, one Translations+<Language>.swift per language
 ├── Preferences/    Preference protocols, UserDefaultsPreferences
 ├── UI/             StatusBarController, StatusMenuBuilder, StatusButtonPresenter,
-│                   AlertPresenter, PreferencesWindowController, DeviceStateStyle
+│                   AlertPresenter, WirelessPrompter, PreferencesWindowController, DeviceStateStyle
 ├── Utils/          ProcessManager (+ ProcessSupport), UncheckedSendable, Foundation helpers
 └── Assets.xcassets/  AppIcon, MenuBarIcon
 ```
@@ -236,6 +278,8 @@ ADBMonitor/
 | `DeviceListParser` | Parses the output of `adb devices -l` |
 | `DeviceMonitor` | Polls on a timer and reports status changes |
 | `AppCoordinator` | Wires the monitor, the status bar, and user actions together |
+| `WirelessCoordinator` | Wi-Fi flows: validate input, run adb, refresh the list, report the result |
+| `WirelessSwitcher` | USB → Wi-Fi: find the IP, `adb tcpip`, then `adb connect` with retries |
 | `StatusBarController` / `StatusMenuBuilder` | Own the `NSStatusItem` and build the `NSMenu` dropdown |
 | `Localizer` | Resolves the effective language and returns text for an `L10nKey`; announces language changes |
 | `LaunchAtLogin` | Reads and changes the login item through `SMAppService` (macOS 13+) behind a small protocol |
@@ -246,6 +290,9 @@ ADBMonitor/
 - **The timer keeps running while the menu is open.** The timer is registered in the `.common` run loop mode, so the device list keeps updating while the menu is displayed.
 - **Only changes update the UI.** `onStatusChange` fires only when the status differs from the previous poll, so the menu does not flicker.
 - **The menu is refilled in place.** The same `NSMenu` is emptied and filled again instead of being replaced, so an open menu does not close.
+- **Wi-Fi results are read from text, not exit codes.** `adb connect` exits 0 even when it fails (for example "failed to connect to … No route to host"), so success means the output starts with "connected to" or "already connected to". `adb pair` is checked for "Successfully paired".
+- **`adb disconnect` is never run without a serial.** Without arguments it disconnects every device, so the service refuses an empty serial.
+- **Discovery never blocks the device list.** It runs after `adb devices` in the same poll, so polls still never overlap. A discovery failure just means an empty Wi-Fi list, and services that already appear as connected devices are filtered out.
 - **No hanging `adb` processes.** After the process exits, the app waits for pipe EOF for at most 1 second, with one shared deadline for stdout and stderr, because `adb` can leave a daemon child that still holds the pipe.
 - **No retain cycles.** Closures capture `weak` references, and `Process` and the pipe collectors are created per run and released afterwards.
 - **Explicit concurrency isolation.** UI code, `DeviceMonitor`, and `AppCoordinator` are `@MainActor`. Cross-thread code (`ProcessManager`) is `@unchecked Sendable`, with the reason in a comment. The result is clean under `-strict-concurrency=complete` (Swift 5) and under the Swift 6 language mode.
@@ -358,8 +405,23 @@ Two different `adb` versions are running at the same time. Run `adb kill-server`
 **Restart works but Shut Down fails.**
 Some vendors and ROMs reject `reboot -p` from the shell without root. The error is shown in a dialog. Power the device off manually.
 
-**A wireless device is not detected.**
-Connect it in the terminal first, for example `adb connect 192.168.1.5:5555` or `adb pair`. ADB Monitor shows what `adb devices -l` reports. It does not make connections itself.
+**Nothing appears under "Available over Wi-Fi".**
+Check that Wireless debugging is on, that the phone and Mac share a network, and that **Detect devices on Wi-Fi** is enabled. Run `adb mdns services` in a terminal; if it prints nothing, the network blocks mDNS. Use **Connect to IP Address…** instead.
+
+**Connecting fails with "failed to connect … Connection refused".**
+The address or port is wrong, or the device is not listening. For Wireless debugging use the port shown on the device (not the pairing port). For a USB device use **Switch to Wi-Fi**.
+
+**Connecting fails with "No route to host", but the phone answers `ping` and other tools can reach it.**
+`adb connect` is carried out by the adb **server** that is already running, not by the command you typed. If that server was started by an app without **Local Network** permission, macOS blocks its connections and reports "No route to host". Run `adb kill-server` (ADB Monitor starts a new server on the next poll, under its own permission) and allow ADB Monitor in System Settings → Privacy & Security → Local Network. This was reproduced on a real phone: the same `adb connect` failed on the old server and succeeded on a fresh one.
+
+**Pairing fails.**
+The code and the pairing port change every time the pairing screen is opened. Open it again and enter the new address and code.
+
+**"Switch to Wi-Fi" says the device has no Wi-Fi IP address.**
+Connect the phone to Wi-Fi first. The app looks for an IPv4 address on the device.
+
+**A device I switched to Wi-Fi shows up twice or is offline after unplugging.**
+Run **Refresh**. If it stays offline, choose **Disconnect** and connect again.
 
 ## Limitations
 
@@ -367,13 +429,15 @@ Connect it in the terminal first, for example `adb connect 192.168.1.5:5555` or 
 - Cannot be distributed through the Mac App Store because App Sandbox is turned off.
 - "Launch at login" needs macOS 13 or later. On macOS 12 add the app under System Settings → Login Items yourself.
 - No notification when a device connects or disconnects. Only the icon and the menu update.
+- Wi-Fi debugging supports IPv4 only. "Switch to Wi-Fi" leaves the phone in TCP mode until it reboots.
+- Pairing with Wireless debugging (Android 11+) and discovery of an advertised Wireless debugging service have only been checked against recorded adb output and fakes, not on a phone with Wireless debugging turned on.
 - Only Restart and Shut Down. Reboot to recovery or bootloader is not implemented (easy to add, see [Adding a new power action](#adding-a-new-power-action)).
 - Translations are AI-written and unreviewed; Cantonese and Batak Toba are drafts (see [Languages](#languages)).
 - Chinese is Traditional only; there is no Simplified Chinese table yet.
 
 ## Privacy and security
 
-- The app makes no network connections of its own and sends no telemetry. The only thing it does is run the local `adb`.
+- The app makes no network connections of its own and sends no telemetry. The only thing it does is run the local `adb`. Wi-Fi discovery and connections are done by `adb` on your local network only, and discovery can be turned off in Preferences.
 - Settings are stored locally in `UserDefaults`.
 - Because the app is not sandboxed, it can run any binary you point it to in **ADB path**. Only enter an `adb` you trust.
 - Restart and Shut Down send commands to real devices. Both always ask for confirmation first.
