@@ -2,6 +2,8 @@
 //  ADBLocator.swift
 //  ADBMonitor
 //
+//  Copyright © 2026 Mories Deo Hutapea,S.E.,S.Kom
+//
 
 import Foundation
 
