@@ -37,7 +37,7 @@ Data flows one way: `ProcessManager` → `ADBService` → `DeviceMonitor` → `A
 
 | Folder | Contents |
 |---|---|
-| `App/` | `AppDelegate` (`@main` entry point, lifecycle, composition root), `AppCoordinator` (wires monitor, status bar, and user actions; owns the sequence confirm → perform → refresh → show error; forwards Wi-Fi actions), `WirelessCoordinator` (Wi-Fi flows), `MainMenuBuilder` |
+| `App/` | `AppDelegate` (`@main` entry point, lifecycle, composition root), `AppCoordinator` (wires monitor, status bar, and user actions; owns the sequence confirm → perform → refresh → show error; forwards Wi-Fi actions), `WirelessCoordinator` (Wi-Fi flows, including QR pairing), `MainMenuBuilder` |
 | `Models/` | Plain value types, no AppKit: `ADBDevice`, `ADBStatus`, `ADBError`, `PowerAction`, `WirelessService`, `WirelessAddress` |
 | `Services/` | `ADBService` (ADB command facade; Wi-Fi commands in `ADBService+Wireless.swift`), `ADBLocator`, `DeviceListParser`, `WirelessServiceParser`, `WiFiAddressParser`, `DeviceMonitor` (polling), `WirelessSwitcher`, `Scheduler`, `LaunchAtLogin` |
 | `Localization/` | `AppLanguage`, `L10nKey`, `Localizer`, and one `Translations+<Language>.swift` per language |
@@ -73,7 +73,9 @@ Behavior that is not obvious from reading the code:
   - Discovery runs after `adb devices` inside the same poll (so polls still never overlap) and only when `wirelessDiscoveryEnabled`. Its failure is not an error: the Wi-Fi list is just empty. `DeviceMonitor` reports it through `onWirelessChange`, separate from `onStatusChange`.
   - User input is validated before adb runs (`WirelessAddress`): `host[:port]`, default port 5555, pairing needs a port and a 6-digit ASCII code. Host characters are restricted to letters, digits, `.` and `-` so nothing odd reaches adb. IPv6 is not supported.
   - **"No route to host" can come from the adb server, not the network.** `adb connect` is done by the already-running adb server. If a server started by an app without macOS Local Network permission is running, connects fail with "No route to host" even though `ping`, `nc`, and Python sockets reach the phone. A fresh server started from a permitted process connects fine (reproduced on a Pixel 3a). `WirelessCoordinator` appends `errorNoRouteHint` to such errors, and `NSLocalNetworkUsageDescription` is set in the generated Info.plist.
-  - **Verified on a real phone (Pixel 3a, adb 35.0.1):** reading the Wi-Fi IP (`ip route get 1.1.1.1` → `… src 192.168.1.3 …`), `adb tcpip`, `adb connect` with retries, listing the device as a Wi-Fi connection, `adb mdns services`, and `adb disconnect <serial>`. **Not verified on a phone:** pairing with Wireless debugging (Android 11+), discovery of an advertised Wireless debugging service, and clicking through the real menus and input dialogs (the input dialogs were never rendered; a screenshot attempt was blocked by other windows).
+  - **Input dialogs.** `AppKitWirelessPrompter` lays the text fields out with explicit frames inside a plain `NSView`. Do not use `NSStackView` for an `NSAlert` accessory view: `NSTextField` has no intrinsic width, so the stack collapsed to width 0 and the "Connect to IP Address" field was invisible and unusable. The dialog is built separately from `runModal()` (`makeConnectDialog`, `makePairingDialog`) so `WirelessPrompterTests` can check the layout; the tests fail if the stack view comes back (checked by reverting the fix).
+  - **Pairing with a QR code** (`WirelessCoordinator.statusMenuDidRequestPairWithQR`). The Mac shows a QR code whose text is `WIFI:T:ADB;S:<name>;P:<password>;;` (`PairingQRCredentials`, random alphanumeric name `adbmonitor-…` and 12-character password, new for every session). After the phone scans it, the phone advertises an `_adb-tls-pairing._tcp` service named `<name>`; `WirelessQRPairer` polls `adb mdns services` every 2 s (up to about 2 minutes, one poll at a time) until that service appears, then runs `adb pair <host:port> <password>` through `WirelessControlling.pairWithQR`. The password is not 6 digits, so it has its own validation (`WirelessAddress.isValidQRPassword`) and the manual `pair` keeps requiring 6 digits. The window (`AppKitPairingQRPresenter`) is a non-modal floating `NSPanel`; closing it cancels the wait. The wait ignores the "Detect devices on Wi-Fi" preference. This follows how Android's "Pair device with QR code" is documented to work; it has **not** been run against a real phone yet, so the name format and the mDNS timing are unverified. Unit tests cover the payload, the QR bitmap (decoded back with `CIDetector`), the polling and cancellation logic, and the window layout.
+  - **Verified on a real phone (Pixel 3a, adb 35.0.1):** reading the Wi-Fi IP (`ip route get 1.1.1.1` → `… src 192.168.1.3 …`), `adb tcpip`, `adb connect` with retries, listing the device as a Wi-Fi connection, `adb mdns services`, and `adb disconnect <serial>`. **Not verified on a phone:** pairing with Wireless debugging (Android 11+), discovery of an advertised Wireless debugging service, and clicking through the real menus and input dialogs. The input dialogs were rendered offscreen (see the technique below) and their frames dumped, not shown on screen.
   - **Testing on a real phone without disturbing the user's adb server:** never `adb kill-server` the shared server (other tools use it). Start a separate one with `adb --one-device NO_SUCH_DEVICE -P 5038 start-server`, run the code with `ANDROID_ADB_SERVER_PORT=5038`, and reach the phone through its Wi-Fi address. Afterwards restore it with `adb -P 5038 -s <ip>:5555 usb`, check `getprop service.adb.tcp.port` is empty or 0, and stop only the second server with `adb -P 5038 kill-server`. Do not touch a phone the user is using for something else.
 - **Status dot.** The colored dot in front of each device is part of an attributed title (`ADBDevice.State.menuTitle(_:)` in `UI/DeviceStateStyle.swift`). Do not use `NSMenuItem.image` for it: on current macOS, custom menu item images are not drawn at all (SF Symbols, bitmaps, and `NSImage` drawing handlers were all tried and none appeared), while colored text does. Check menu rendering visually, not only by building.
 - **Icons.** `Assets.xcassets/AppIcon.appiconset` (10 macOS sizes) and `MenuBarIcon.imageset` (monochrome template, 14x16 pt, `template-rendering-intent: template`) were generated from a single black, transparent glyph. The generator script (Swift and CoreGraphics) is not in the repo, so changing the icon means regenerating both sets. `StatusButtonPresenter` loads `MenuBarIcon` with `NSImage(named:)` and falls back to the SF Symbol `iphone` if the asset is missing. The warning icon is always an SF Symbol.
@@ -93,7 +95,17 @@ Behavior that is not obvious from reading the code:
 
 When adding text, also run the translation tests: `TranslationTableTests` checks that every language defines every `L10nKey` with the same placeholders as English, so a missing or mismatched entry fails the build of the test suite.
 
+To look at a window or alert without capturing the user's screen (other windows, possibly private, can be in the way): render its view hierarchy with `view.bitmapImageRepForCachingDisplay(in:)` plus `cacheDisplay(in:to:)`, and print every subview's `frame`. For a modal `NSAlert`, do it from a `Timer` added to `RunLoop.main` in `.common` mode (GCD blocks do not run during the modal session), then call `NSApp.abortModal()`. The frame dump is what found the zero-width field; the bitmap is white-on-white for labels because the dark window backdrop is not drawn.
+
 Layout and menu rendering cannot be checked by building or by structural tests. Pop up the real `StatusMenuBuilder` menu or the `PreferencesWindowController` from a small throwaway harness app and screenshot it (use a floating window and no text-field focus so the capture is stable).
+
+### UI tests
+
+`ADBMonitorUITests` (XCUITest) has its own scheme, `ADBMonitor-UITests`, so the unit test run needs no Accessibility permission. Run it while the computer is idle, because the tests drive the real mouse and windows: `xcodebuild test -project ADBMonitor.xcodeproj -scheme ADBMonitor-UITests -destination 'platform=macOS'`.
+
+- **Test mode.** The app has a Debug-only mode (`-ui-testing`, plus `-ui-scenario devices|empty|adb-missing|adb-error` and `-ui-language <code>`; the log path comes from `ADBMONITOR_UITEST_LOG`). It lives in `ADBMonitor/App/UITesting/` inside `#if DEBUG`, and `AppDelegate.makeCoordinator()` switches to it. Adb is replaced by `FakeADBWorld`, which keeps state and imitates adb 35.0.1 (including `connect` exiting 0 on failure). Preferences use a separate `UserDefaults` suite and the login item is in memory. Every adb command is appended to the log file, so tests assert on what was sent (`waitForCommand`, `assertNoCommand`). Keep the fake's output formats in line with the observed adb behavior described above.
+- **Accessibility tree of this app.** Find menu items by `title`, not `label`; command items get an `identifier` from their selector (`refreshSelected`, `preferencesSelected`, `connectByAddressSelected`, and so on). The submenus of all devices are in the tree at once with a zero frame, so look an action up inside its device item. A confirmation or input dialog is `app.dialogs`; its buttons are found by title.
+- **Status.** `MenuUITests` and `DeviceActionUITests` passed. In `WirelessUITests` 12 passed and 4 failed because the automation session dropped ("Not authorized for performing UI testing actions"), not because of an assertion. `PreferencesUITests` and `LocalizationUITests` have never been run, and the QR pairing window has no UI test. Treat them as unverified until a full run passes.
 
 ## Lint and concurrency checks
 
@@ -103,8 +115,8 @@ A normal build shows no concurrency warnings. Before changing cross-thread code,
 
 ```sh
 cd ADBMonitor && SDK=$(xcrun --show-sdk-path)
-swiftc -typecheck -parse-as-library -sdk $SDK -target arm64-apple-macos12.0 -swift-version 5 -strict-concurrency=complete App/*.swift Models/*.swift Services/*.swift Preferences/*.swift UI/*.swift Utils/*.swift
-swiftc -typecheck -parse-as-library -sdk $SDK -target arm64-apple-macos12.0 -swift-version 6 App/*.swift Models/*.swift Services/*.swift Preferences/*.swift UI/*.swift Utils/*.swift
+swiftc -typecheck -parse-as-library -sdk $SDK -target arm64-apple-macos12.0 -swift-version 5 -strict-concurrency=complete App/*.swift Localization/*.swift Models/*.swift Services/*.swift Preferences/*.swift UI/*.swift Utils/*.swift
+swiftc -typecheck -parse-as-library -sdk $SDK -target arm64-apple-macos12.0 -swift-version 6 App/*.swift Localization/*.swift Models/*.swift Services/*.swift Preferences/*.swift UI/*.swift Utils/*.swift
 ```
 
 Isolation rules:
@@ -115,6 +127,7 @@ Isolation rules:
 
 ## Conventions
 
+- **Comments are written in English.** This covers `///` doc comments, `//` comments, trailing comments, and `// MARK:` titles, in app code, unit tests, and UI tests. Do not write Indonesian comments. (User-visible text is a separate matter: it lives in `Localization/` and is translated per language.)
 - **File header.** Every `.swift` file starts with this 6-line header, and new files must use it:
 
   ```swift
