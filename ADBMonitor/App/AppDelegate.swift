@@ -52,13 +52,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let locator = ADBLocator()
         let launchAtLogin = LaunchAtLogin.makeDefault()
         let localizer = Localizer(provider: preferences)
+        let runner = ProcessManager()
         let service = ADBService(pathProvider: preferences,
                                  locator: locator,
                                  parser: DeviceListParser(),
-                                 runner: ProcessManager())
+                                 runner: runner)
+        let fastboot = FastbootService(locator: ADBLocator(executableName: "fastboot"), runner: runner)
         let scheduler = RunLoopScheduler()
         let monitor = DeviceMonitor(service: service,
                                     discovery: service,
+                                    fastboot: fastboot,
                                     discoverySettings: preferences,
                                     intervalProvider: preferences,
                                     scheduler: scheduler)
@@ -73,6 +76,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                            monitor: monitor,
                                            localizer: localizer)
 
+        let tools = ToolsCoordinator(server: service, fastboot: fastboot, alerts: alerts, monitor: monitor,
+                                     localizer: localizer)
+
         let makePreferencesWindow: @MainActor () -> PreferencesWindowController = {
             PreferencesWindowController(preferences: preferences,
                                         locator: locator,
@@ -84,8 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                               service: service,
                               alerts: alerts,
                               wireless: wireless,
+                              tools: tools,
                               settings: service,
                               localizer: localizer,
+                              detailsTracker: DeviceDetailsTracker(reader: service),
                               makeStatusBar: { StatusBarController(actionHandler: $0, localizer: localizer) },
                               makePreferencesWindow: makePreferencesWindow)
     }

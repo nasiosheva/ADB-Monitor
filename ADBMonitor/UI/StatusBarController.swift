@@ -14,6 +14,10 @@ protocol StatusBarRendering: AnyObject {
     func render(_ status: ADBStatus?)
     /// Wi-Fi services that are available (found, not yet connected).
     func renderWireless(_ services: [WirelessService])
+    /// Devices that are in fastboot mode.
+    func renderFastboot(_ devices: [FastbootDevice])
+    /// Android version and battery of connected devices, keyed by serial.
+    func renderDetails(_ details: [String: DeviceDetails])
 }
 
 /// Owns the `NSStatusItem` in the menu bar and keeps the button and dropdown in sync with `ADBStatus`.
@@ -26,6 +30,8 @@ final class StatusBarController: StatusBarRendering {
     private let buttonPresenter = StatusButtonPresenter()
     private var lastStatus: ADBStatus?
     private var lastWireless: [WirelessService] = []
+    private var lastFastboot: [FastbootDevice] = []
+    private var lastDetails: [String: DeviceDetails] = [:]
 
     init(actionHandler: StatusMenuActionHandling, localizer: Localizing) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -50,12 +56,27 @@ final class StatusBarController: StatusBarRendering {
         if let button = statusItem.button {
             buttonPresenter.apply(status, to: button)
         }
-        menuBuilder.populate(menu, for: status, wireless: lastWireless)
+        rebuildMenu()
     }
 
     func renderWireless(_ services: [WirelessService]) {
         lastWireless = services
-        menuBuilder.populate(menu, for: lastStatus, wireless: lastWireless)
+        rebuildMenu()
+    }
+
+    func renderFastboot(_ devices: [FastbootDevice]) {
+        lastFastboot = devices
+        rebuildMenu()
+    }
+
+    func renderDetails(_ details: [String: DeviceDetails]) {
+        lastDetails = details
+        rebuildMenu()
+    }
+
+    private func rebuildMenu() {
+        menuBuilder.populate(menu, for: lastStatus, wireless: lastWireless, fastboot: lastFastboot,
+                             details: lastDetails)
     }
 
     /// The language changed: rebuild the menu from the last status without waiting for the next poll.

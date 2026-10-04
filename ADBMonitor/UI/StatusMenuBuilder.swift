@@ -22,9 +22,18 @@ protocol WirelessActionHandling: AnyObject {
     func statusMenu(didRequestSwitchToWireless device: ADBDevice)
 }
 
+/// Tool actions the user can request from the dropdown menu.
+@MainActor
+protocol ToolsActionHandling: AnyObject {
+    /// Restarts the adb server (after a confirmation).
+    func statusMenuDidRequestRestartServer()
+    /// Reboots a device that is in fastboot mode (after a confirmation).
+    func statusMenu(didRequestRebootFastbootDevice device: FastbootDevice)
+}
+
 /// Actions the user can request from the dropdown menu.
 @MainActor
-protocol StatusMenuActionHandling: WirelessActionHandling {
+protocol StatusMenuActionHandling: WirelessActionHandling, ToolsActionHandling {
     func statusMenuDidRequestRefresh()
     func statusMenuDidRequestPreferences()
     func statusMenuDidRequestQuit()
@@ -43,29 +52,42 @@ final class StatusMenuBuilder: NSObject {
 
     private weak var handler: StatusMenuActionHandling?
     private let l10n: Localizing
+    private let clipboard: ClipboardWriting
 
-    init(handler: StatusMenuActionHandling, localizer: Localizing) {
+    /// `clipboard` is only replaced by tests; the app uses the system clipboard.
+    init(handler: StatusMenuActionHandling, localizer: Localizing, clipboard: ClipboardWriting? = nil) {
         self.handler = handler
         self.l10n = localizer
+        self.clipboard = clipboard ?? SystemClipboard()
         super.init()
     }
 
     /// Refills the same menu (instead of creating a new one) so a menu that is open does not close.
-    /// `wireless` holds Wi-Fi services that were found but are not connected yet.
-    func populate(_ menu: NSMenu, for status: ADBStatus?, wireless: [WirelessService] = []) {
+    /// `wireless` holds Wi-Fi services that were found but are not connected yet, `fastboot` the devices in
+    /// fastboot mode, and `details` the Android version and battery of connected devices keyed by serial.
+    func populate(_ menu: NSMenu,
+                  for status: ADBStatus?,
+                  wireless: [WirelessService] = [],
+                  fastboot: [FastbootDevice] = [],
+                  details: [String: DeviceDetails] = [:]) {
         menu.removeAllItems()
-        let items = statusItems(for: status, wireless: wireless) + [.separator()] + commandItems()
+        let items = statusItems(for: status, wireless: wireless, fastboot: fastboot, details: details)
+            + [.separator()] + commandItems(for: status)
         items.forEach(menu.addItem)
     }
 
     // MARK: - Status section
 
-    private func statusItems(for status: ADBStatus?, wireless: [WirelessService]) -> [NSMenuItem] {
+    private func statusItems(for status: ADBStatus?,
+                             wireless: [WirelessService],
+                             fastboot: [FastbootDevice],
+                             details: [String: DeviceDetails]) -> [NSMenuItem] {
         guard let status = status else { return [.info(l10n.text(.menuChecking))] }
 
         switch status {
         case .devices(let devices):
-            return deviceListItems(for: devices) + wirelessItems(for: wireless) + wirelessCommandItems()
+            return deviceListItems(for: devices, details: details) + fastbootItems(for: fastboot)
+                + wirelessItems(for: wireless) + wirelessCommandItems()
         case .adbNotFound(let customPath):
             return adbNotFoundItems(customPath: customPath)
         case .failure(let error):
@@ -73,9 +95,10 @@ final class StatusMenuBuilder: NSObject {
         }
     }
 
-    private func deviceListItems(for devices: [ADBDevice]) -> [NSMenuItem] {
+    private func deviceListItems(for devices: [ADBDevice], details: [String: DeviceDetails]) -> [NSMenuItem] {
         guard !devices.isEmpty else { return [.info(l10n.text(.menuNoDevices))] }
-        return [.info(l10n.text(.menuDevicesHeader, String(devices.count))), .separator()] + devices.map(deviceItem)
+        let items = devices.map { deviceItem(for: $0, details: details[$0.serial]) }
+        return [.info(l10n.text(.menuDevicesHeader, String(devices.count))), .separator()] + items
     }
 
     private func adbNotFoundItems(customPath: String?) -> [NSMenuItem] {
@@ -89,6 +112,34 @@ final class StatusMenuBuilder: NSObject {
                 .info(l10n.text(.menuAdbInstallHint)),
                 .info(l10n.text(.menuAdbSetPathHint)),
         ]
+    }
+
+    // MARK: - Fastboot section
+
+    private func fastbootItems(for devices: [FastbootDevice]) -> [NSMenuItem] {
+        guard !devices.isEmpty else { return [] }
+        return [.separator(), .info(l10n.text(.menuFastbootHeader, String(devices.count)))]
+            + devices.map(fastbootItem)
+    }
+
+    private func fastbootItem(for device: FastbootDevice) -> NSMenuItem {
+        let title = "\(device.serial) — \(l10n.text(.stateFastboot))"
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.attributedTitle = MenuTitleStyle.dotted(title, color: MenuTitleStyle.fastbootColor)
+        item.toolTip = device.serial
+
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let rows: [(L10nKey, String)] = [(.detailStatus, l10n.text(.stateFastboot)), (.detailSerial, device.serial)]
+        rows.forEach { key, value in menu.addItem(.info(l10n.text(.labelValue, l10n.text(key), value))) }
+        menu.addItem(.separator())
+        menu.addItem(copyItem(.menuCopySerial, text: device.serial))
+        menu.addItem(.command(l10n.text(.menuFastbootReboot),
+                              action: #selector(fastbootRebootSelected(_:)),
+                              target: self,
+                              representedObject: device))
+        item.submenu = menu
+        return item
     }
 
     // MARK: - Wi-Fi section
@@ -127,31 +178,33 @@ final class StatusMenuBuilder: NSObject {
 
     // MARK: - Device item
 
-    private func deviceItem(for device: ADBDevice) -> NSMenuItem {
+    private func deviceItem(for device: ADBDevice, details: DeviceDetails?) -> NSMenuItem {
         let title = "\(device.displayName) (\(device.serial)) — \(l10n.label(for: device.state))"
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.attributedTitle = device.state.menuTitle(title)
         item.toolTip = device.serial
-        item.submenu = detailMenu(for: device)
+        item.submenu = detailMenu(for: device, details: details)
         return item
     }
 
-    private func detailMenu(for device: ADBDevice) -> NSMenu {
+    private func detailMenu(for device: ADBDevice, details: DeviceDetails?) -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        var items = detailRows(for: device).map { NSMenuItem.info(l10n.text(.labelValue, $0.label, $0.value)) }
+        var items = detailRows(for: device, details: details).map {
+            NSMenuItem.info(l10n.text(.labelValue, $0.label, $0.value))
+        }
         if let hintKey = device.state.hintKey {
             items += [.separator(), .info(l10n.text(hintKey))]
         }
-        items += [.separator(), copySerialItem(for: device)]
+        items += [.separator()] + copyItems(for: device)
         items += wirelessDeviceItems(for: device) + [developerOptionsItem(for: device)] + powerItems(for: device)
 
         items.forEach(menu.addItem)
         return menu
     }
 
-    private func detailRows(for device: ADBDevice) -> [(label: String, value: String)] {
+    private func detailRows(for device: ADBDevice, details: DeviceDetails?) -> [(label: String, value: String)] {
         let rows: [(L10nKey, String?)] = [
             (.detailStatus, l10n.label(for: device.state)),
             (.detailSerial, device.serial),
@@ -160,13 +213,25 @@ final class StatusMenuBuilder: NSObject {
             (.detailProduct, device.product),
             (.detailDevice, device.deviceName),
             (.detailTransportID, device.transportID),
+            (.detailAndroidVersion, details?.androidVersion),
+            (.detailBattery, details?.batteryLevel.map { "\($0)%" }),
         ]
         return rows.compactMap { key, value in value.map { (label: l10n.text(key), value: $0) } }
     }
 
-    private func copySerialItem(for device: ADBDevice) -> NSMenuItem {
-        .command(l10n.text(.menuCopySerial), action: #selector(copySerialSelected(_:)), target: self,
-                 representedObject: device.serial)
+    /// Copy actions: the serial, an `adb -s <serial>` prefix, and (for Wi-Fi devices) the `host:port` address.
+    private func copyItems(for device: ADBDevice) -> [NSMenuItem] {
+        var items = [copyItem(.menuCopySerial, text: device.serial),
+                     copyItem(.menuCopyAdbPrefix, text: "adb -s \(device.serial)")]
+        // Only a plain `host:port` serial is an address; an mDNS serial (`adb-…._adb-tls-connect._tcp`) is not.
+        if device.connection == .network, WirelessAddress.normalized(device.serial, requirePort: true) != nil {
+            items.append(copyItem(.menuCopyAddress, text: device.serial))
+        }
+        return items
+    }
+
+    private func copyItem(_ key: L10nKey, text: String) -> NSMenuItem {
+        .command(l10n.text(key), action: #selector(copyTextSelected(_:)), target: self, representedObject: text)
     }
 
     /// Only for devices that are connected normally; the command is sent through the Android shell.
@@ -197,26 +262,46 @@ final class StatusMenuBuilder: NSObject {
         }
     }
 
+    /// Restart and shut down first, then (after a separator) the restarts into a special mode.
     private func powerItems(for device: ADBDevice) -> [NSMenuItem] {
-        PowerAction.allCases.map { action in
+        var items: [NSMenuItem] = []
+        for action in PowerAction.allCases {
+            if action.isBootMode, items.last?.isSeparatorItem == false, !hasBootModeItem(in: items) {
+                items.append(.separator())
+            }
             let item = NSMenuItem.command(l10n.text(action.menuTitleKey),
                                           action: #selector(powerActionSelected(_:)),
                                           target: self,
                                           representedObject: PowerRequest(action: action, device: device))
             item.isEnabled = action.isAvailable(for: device.state)
-            return item
+            items.append(item)
         }
+        return items
+    }
+
+    private func hasBootModeItem(in items: [NSMenuItem]) -> Bool {
+        items.contains { ($0.representedObject as? PowerRequest)?.action.isBootMode == true }
     }
 
     // MARK: - Command section
 
-    private func commandItems() -> [NSMenuItem] {
-        [
+    private func commandItems(for status: ADBStatus?) -> [NSMenuItem] {
+        var items: [NSMenuItem] = [
             .command(l10n.text(.menuRefresh), action: #selector(refreshSelected), target: self, key: "r"),
             .command(l10n.text(.menuPreferences), action: #selector(preferencesSelected), target: self, key: ","),
-            .separator(),
-            .command(l10n.text(.menuQuit), action: #selector(quitSelected), target: self, key: "q"),
         ]
+        // Restarting the server only makes sense when adb exists; it is most useful when adb reports an error.
+        switch status {
+        case .devices?, .failure?:
+            items.append(.command(l10n.text(.menuRestartServer),
+                                  action: #selector(restartServerSelected),
+                                  target: self))
+        case .adbNotFound?, nil:
+            break
+        }
+        items += [.separator(),
+                  .command(l10n.text(.menuQuit), action: #selector(quitSelected), target: self, key: "q")]
+        return items
     }
 
     // MARK: - Actions
@@ -225,10 +310,16 @@ final class StatusMenuBuilder: NSObject {
     @objc private func preferencesSelected() { handler?.statusMenuDidRequestPreferences() }
     @objc private func quitSelected() { handler?.statusMenuDidRequestQuit() }
 
-    @objc private func copySerialSelected(_ sender: NSMenuItem) {
-        guard let serial = sender.representedObject as? String else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(serial, forType: .string)
+    @objc private func copyTextSelected(_ sender: NSMenuItem) {
+        guard let text = sender.representedObject as? String else { return }
+        clipboard.copy(text)
+    }
+
+    @objc private func restartServerSelected() { handler?.statusMenuDidRequestRestartServer() }
+
+    @objc private func fastbootRebootSelected(_ sender: NSMenuItem) {
+        guard let device = sender.representedObject as? FastbootDevice else { return }
+        handler?.statusMenu(didRequestRebootFastbootDevice: device)
     }
 
     @objc private func developerOptionsSelected(_ sender: NSMenuItem) {

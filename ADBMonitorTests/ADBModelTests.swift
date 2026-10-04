@@ -81,6 +81,33 @@ final class ADBModelTests: XCTestCase {
         }
     }
 
+    func testBootModeActionArguments() {
+        XCTAssertEqual(PowerAction.rebootRecovery.adbArguments, ["reboot", "recovery"])
+        XCTAssertEqual(PowerAction.rebootBootloader.adbArguments, ["reboot", "bootloader"])
+        XCTAssertEqual(PowerAction.rebootDownload.adbArguments, ["reboot", "download"])
+    }
+
+    func testOnlyTheBootModeActionsAreBootModes() {
+        let bootModes = PowerAction.allCases.filter(\.isBootMode)
+        XCTAssertEqual(bootModes, [.rebootRecovery, .rebootBootloader, .rebootDownload])
+    }
+
+    func testBootModeAvailabilityMatrix() {
+        let states: [ADBDevice.State] = [.device, .recovery, .offline, .unauthorized, .noPermissions,
+                                         .authorizing, .connecting, .sideload, .bootloader, .unknown("x")]
+        // Download mode is a Samsung feature that is entered from a running system only.
+        let reachable: [PowerAction: Set<ADBDevice.State>] = [
+            .rebootRecovery: [.device, .recovery],
+            .rebootBootloader: [.device, .recovery],
+            .rebootDownload: [.device],
+        ]
+        for (action, allowed) in reachable {
+            for state in states {
+                XCTAssertEqual(action.isAvailable(for: state), allowed.contains(state), "\(action) \(state)")
+            }
+        }
+    }
+
     func testEveryPowerActionKeyExistsInEveryLanguage() {
         for language in AppLanguage.allCases {
             let table = Translations.table(for: language)

@@ -105,6 +105,8 @@ struct StubLanguage: LanguageProviding {
 final class FakeMonitor: DeviceMonitoring {
     var onStatusChange: ((ADBStatus) -> Void)?
     var onWirelessChange: (([WirelessService]) -> Void)?
+    var onFastbootChange: (([FastbootDevice]) -> Void)?
+    var onPoll: (([ADBDevice]) -> Void)?
     private(set) var startCount = 0
     private(set) var stopCount = 0
     private(set) var refreshCount = 0
@@ -123,6 +125,9 @@ final class FakeAlerts: AlertPresenting {
     var confirmAnswer = true
     private(set) var confirmations: [(action: PowerAction, device: ADBDevice)] = []
     private(set) var failures: [(action: PowerAction, device: ADBDevice, error: ADBError)] = []
+    /// Answer for the general confirmation `confirm(title:message:button:)`.
+    var generalConfirmAnswer = true
+    private(set) var generalConfirmations: [(title: String, message: String, button: String)] = []
     private(set) var errors: [(title: String, message: String)] = []
     private(set) var infos: [(title: String, message: String)] = []
     var log: CallLog?
@@ -131,6 +136,12 @@ final class FakeAlerts: AlertPresenting {
         confirmations.append((action, device))
         log?.record("confirm")
         return confirmAnswer
+    }
+
+    func confirm(title: String, message: String, button: String) -> Bool {
+        generalConfirmations.append((title, message, button))
+        log?.record("confirm")
+        return generalConfirmAnswer
     }
 
     func showFailure(of action: PowerAction, on device: ADBDevice, error: ADBError) {
@@ -155,6 +166,10 @@ final class FakeStatusBar: StatusBarRendering {
     private(set) var renderedWireless: [[WirelessService]] = []
     func render(_ status: ADBStatus?) { rendered.append(status) }
     func renderWireless(_ services: [WirelessService]) { renderedWireless.append(services) }
+    private(set) var renderedFastboot: [[FastbootDevice]] = []
+    private(set) var renderedDetails: [[String: DeviceDetails]] = []
+    func renderFastboot(_ devices: [FastbootDevice]) { renderedFastboot.append(devices) }
+    func renderDetails(_ details: [String: DeviceDetails]) { renderedDetails.append(details) }
 }
 
 @MainActor
@@ -177,6 +192,12 @@ final class RecordingMenuHandler: StatusMenuActionHandling {
 
     private(set) var developerOptionsRequests: [ADBDevice] = []
     func statusMenu(didRequestOpenDeveloperOptionsOn device: ADBDevice) { developerOptionsRequests.append(device) }
+
+    // Tools
+    private(set) var restartServerCount = 0
+    private(set) var fastbootReboots: [FastbootDevice] = []
+    func statusMenuDidRequestRestartServer() { restartServerCount += 1 }
+    func statusMenu(didRequestRebootFastbootDevice device: FastbootDevice) { fastbootReboots.append(device) }
 
     // Wi-Fi
     private(set) var connectAddresses: [String] = []
@@ -409,4 +430,66 @@ final class FakePairingQRWindow: PairingQRPresenting {
         onCancel = nil
         cancel?()
     }
+}
+
+// MARK: - Tools, fastboot, and device details
+
+/// Records what would be copied, so tests never touch the real clipboard of the user.
+@MainActor
+final class RecordingClipboard: ClipboardWriting {
+    private(set) var copied: [String] = []
+    func copy(_ text: String) { copied.append(text) }
+}
+
+final class FakeServerController: ADBServerControlling {
+    var result: Result<Void, ADBError> = .success(())
+    private(set) var restartCount = 0
+    var log: CallLog?
+
+    func restartServer(completion: @escaping (Result<Void, ADBError>) -> Void) {
+        restartCount += 1
+        log?.record("restartServer")
+        completion(result)
+    }
+}
+
+final class FakeFastbootService: FastbootListing, FastbootControlling {
+    var listResult: Result<[FastbootDevice], ADBError> = .success([])
+    var rebootResult: Result<Void, ADBError> = .success(())
+    private(set) var listCount = 0
+    private(set) var rebootedSerials: [String] = []
+    var log: CallLog?
+
+    func listFastboot(completion: @escaping (Result<[FastbootDevice], ADBError>) -> Void) {
+        listCount += 1
+        completion(listResult)
+    }
+
+    func reboot(serial: String, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        rebootedSerials.append(serial)
+        log?.record("fastbootReboot")
+        completion(rebootResult)
+    }
+}
+
+/// `readDetails` only finishes when the test calls `complete`, so tests can check the in-flight state.
+final class FakeDetailsReader: DeviceDetailsReading {
+    private(set) var requested: [String] = []
+    private var pending: [(Result<DeviceDetails, ADBError>) -> Void] = []
+
+    func readDetails(of serial: String, completion: @escaping (Result<DeviceDetails, ADBError>) -> Void) {
+        requested.append(serial)
+        pending.append(completion)
+    }
+
+    func complete(_ result: Result<DeviceDetails, ADBError>) {
+        pending.removeFirst()(result)
+    }
+}
+
+@MainActor
+final class FakeDetailsTracker: DeviceDetailsTracking {
+    var onChange: (([String: DeviceDetails]) -> Void)?
+    private(set) var tracked: [[ADBDevice]] = []
+    func track(devices: [ADBDevice]) { tracked.append(devices) }
 }

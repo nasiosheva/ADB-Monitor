@@ -13,6 +13,7 @@ final class DeviceMonitorTests: XCTestCase {
 
     private var service: FakeADBService!
     private var discovery: FakeWirelessDiscovery!
+    private var fastboot: FakeFastbootService!
     private var settings: MutableDiscoverySettings!
     private var scheduler: FakeScheduler!
     private var center: NotificationCenter!
@@ -24,6 +25,7 @@ final class DeviceMonitorTests: XCTestCase {
         super.setUp()
         service = FakeADBService()
         discovery = FakeWirelessDiscovery()
+        fastboot = FakeFastbootService()
         settings = MutableDiscoverySettings(false)   // the older tests do not touch Wi-Fi discovery
         scheduler = FakeScheduler()
         center = NotificationCenter()
@@ -31,6 +33,7 @@ final class DeviceMonitorTests: XCTestCase {
         emittedWireless = []
         monitor = DeviceMonitor(service: service,
                                 discovery: discovery,
+                                fastboot: fastboot,
                                 discoverySettings: settings,
                                 intervalProvider: StubInterval(refreshInterval: 2.5),
                                 scheduler: scheduler,
@@ -230,5 +233,82 @@ final class DeviceMonitorTests: XCTestCase {
 
         discovery.complete(.success([]))
         XCTAssertEqual(service.pendingLists.count, 1, "poll tambahan berjalan setelah penemuan selesai")
+    }
+
+    // MARK: - Fastboot and per-poll callback
+
+    private let bootloaderPhone = FastbootDevice(serial: "ZY22XXXX", mode: "fastboot")
+
+    func testFastbootDevicesAreEmittedAndOnlyOnChange() {
+        var emittedFastboot: [[FastbootDevice]] = []
+        monitor.onFastbootChange = { emittedFastboot.append($0) }
+        fastboot.listResult = .success([bootloaderPhone])
+
+        monitor.start()
+        service.completeList(.success([]))
+        XCTAssertEqual(emittedFastboot, [[bootloaderPhone]])
+
+        scheduler.scheduled[0].action()
+        service.completeList(.success([]))
+        XCTAssertEqual(emittedFastboot.count, 1, "the same list is not sent again")
+
+        fastboot.listResult = .success([])
+        scheduler.scheduled[1].action()
+        service.completeList(.success([]))
+        XCTAssertEqual(emittedFastboot.last, [], "unplugging clears the list")
+    }
+
+    func testNothingIsEmittedWhenNoFastbootDeviceExists() {
+        var emittedFastboot: [[FastbootDevice]] = []
+        monitor.onFastbootChange = { emittedFastboot.append($0) }
+        monitor.start()
+        service.completeList(.success([]))
+        XCTAssertTrue(emittedFastboot.isEmpty)
+        XCTAssertEqual(fastboot.listCount, 1)
+    }
+
+    func testFastbootFailureIsNotAnError() {
+        var emittedFastboot: [[FastbootDevice]] = []
+        monitor.onFastbootChange = { emittedFastboot.append($0) }
+        fastboot.listResult = .failure(.notFound(customPath: nil))
+        monitor.start()
+        service.completeList(.success([Sample.device()]))
+        XCTAssertEqual(emitted, [.devices([Sample.device()])])
+        XCTAssertTrue(emittedFastboot.isEmpty)
+    }
+
+    func testFastbootIsSkippedAndClearedWhenAdbFails() {
+        var emittedFastboot: [[FastbootDevice]] = []
+        monitor.onFastbootChange = { emittedFastboot.append($0) }
+        fastboot.listResult = .success([bootloaderPhone])
+        monitor.start()
+        service.completeList(.success([]))
+        XCTAssertEqual(fastboot.listCount, 1)
+
+        scheduler.scheduled[0].action()
+        service.completeList(.failure(.timedOut))
+        XCTAssertEqual(fastboot.listCount, 1, "no fastboot lookup when adb itself fails")
+        XCTAssertEqual(emittedFastboot.last, [])
+    }
+
+    func testOnPollReportsTheDevicesOfEverySuccessfulPollEvenWhenUnchanged() {
+        var polled: [[ADBDevice]] = []
+        monitor.onPoll = { polled.append($0) }
+        let device = Sample.device()
+
+        monitor.start()
+        service.completeList(.success([device]))
+        scheduler.scheduled[0].action()
+        service.completeList(.success([device]))
+        XCTAssertEqual(polled, [[device], [device]])
+        XCTAssertEqual(emitted.count, 1, "while onStatusChange fires only on a change")
+    }
+
+    func testOnPollIsNotCalledWhenAdbFails() {
+        var polled: [[ADBDevice]] = []
+        monitor.onPoll = { polled.append($0) }
+        monitor.start()
+        service.completeList(.failure(.timedOut))
+        XCTAssertTrue(polled.isEmpty)
     }
 }

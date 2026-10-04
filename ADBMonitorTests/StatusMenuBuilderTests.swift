@@ -17,26 +17,30 @@ final class StatusMenuBuilderTests: XCTestCase {
     /// `NSMenuItem.target` is weak: the builder must stay alive while the menu is in use
     /// (in the app it is owned by `StatusBarController`).
     private var builders: [StatusMenuBuilder] = []
+    private var clipboard: RecordingClipboard!
 
     override func setUp() {
         super.setUp()
         handler = RecordingMenuHandler()
+        clipboard = RecordingClipboard()
         builders = []
     }
 
     private func makeBuilder(_ language: AppLanguage = .english) -> StatusMenuBuilder {
         let localizer = Localizer(provider: StubLanguage(languagePreference: .explicit(language)),
                                   notificationCenter: NotificationCenter())
-        return StatusMenuBuilder(handler: handler, localizer: localizer)
+        return StatusMenuBuilder(handler: handler, localizer: localizer, clipboard: clipboard)
     }
 
     private func menu(for status: ADBStatus?,
                       wireless: [WirelessService] = [],
+                      fastboot: [FastbootDevice] = [],
+                      details: [String: DeviceDetails] = [:],
                       language: AppLanguage = .english) -> NSMenu {
         let menu = NSMenu()
         let builder = makeBuilder(language)
         builders.append(builder)
-        builder.populate(menu, for: status, wireless: wireless)
+        builder.populate(menu, for: status, wireless: wireless, fastboot: fastboot, details: details)
         return menu
     }
 
@@ -135,8 +139,10 @@ final class StatusMenuBuilderTests: XCTestCase {
         XCTAssertEqual(try submenuTitles(of: .devices([Sample.device("SER1")])),
                        ["Status: Connected", "Serial: SER1", "Connection: USB", "Model: Pixel 3a",
                         "Product: sargo", "Device: sargo", "Transport ID: 2",
-                        "", "Copy Serial Number", "Switch to Wi-Fi", "Open Developer Options",
-                        "Restart Device…", "Shut Down Device…"])
+                        "", "Copy Serial Number", "Copy ADB Command Prefix", "Switch to Wi-Fi",
+                        "Open Developer Options",
+                        "Restart Device…", "Shut Down Device…",
+                        "", "Reboot to Recovery…", "Reboot to Bootloader…", "Reboot to Download Mode…"])
     }
 
     func testSubmenuOmitsMissingFields() throws {
@@ -196,6 +202,169 @@ final class StatusMenuBuilderTests: XCTestCase {
         try click(try item("Shut Down Device…", in: sub))
         XCTAssertEqual(handler.powerRequests.map(\.action), [.restart, .shutdown])
         XCTAssertEqual(handler.powerRequests.map(\.device), [device, device])
+    }
+
+    // MARK: Boot modes
+
+    func testBootModeItemsFollowThePowerItemsAfterASeparator() throws {
+        let sub = try XCTUnwrap(menu(for: .devices([Sample.device()])).items[2].submenu)
+        let rows = titles(sub)
+        let restart = try XCTUnwrap(rows.firstIndex(of: "Shut Down Device…"))
+        XCTAssertEqual(Array(rows[(restart + 1)...]),
+                       ["", "Reboot to Recovery…", "Reboot to Bootloader…", "Reboot to Download Mode…"])
+    }
+
+    func testBootModeEnablementFollowsState() throws {
+        func enabled(_ state: ADBDevice.State) throws -> [Bool] {
+            let sub = try XCTUnwrap(menu(for: .devices([Sample.device(state: state)])).items[2].submenu)
+            return try ["Reboot to Recovery…", "Reboot to Bootloader…", "Reboot to Download Mode…"]
+                .map { try item($0, in: sub).isEnabled }
+        }
+        XCTAssertEqual(try enabled(.device), [true, true, true])
+        XCTAssertEqual(try enabled(.recovery), [true, true, false])
+        XCTAssertEqual(try enabled(.offline), [false, false, false])
+        XCTAssertEqual(try enabled(.unauthorized), [false, false, false])
+    }
+
+    func testBootModeItemsSendTheActionAndTheDevice() throws {
+        let device = Sample.device("SER9")
+        let sub = try XCTUnwrap(menu(for: .devices([device])).items[2].submenu)
+        try click(try item("Reboot to Recovery…", in: sub))
+        try click(try item("Reboot to Bootloader…", in: sub))
+        try click(try item("Reboot to Download Mode…", in: sub))
+        XCTAssertEqual(handler.powerRequests.map(\.action), [.rebootRecovery, .rebootBootloader, .rebootDownload])
+        XCTAssertEqual(handler.powerRequests.map(\.device), [device, device, device])
+    }
+
+    // MARK: Copy items
+
+    func testCopyItemsPutTheRightTextOnTheClipboard() throws {
+        let sub = try XCTUnwrap(menu(for: .devices([Sample.device("SER9")])).items[2].submenu)
+        try click(try item("Copy Serial Number", in: sub))
+        try click(try item("Copy ADB Command Prefix", in: sub))
+        XCTAssertEqual(clipboard.copied, ["SER9", "adb -s SER9"])
+    }
+
+    func testCopyAddressIsOnlyOfferedForAPlainHostAndPortSerial() throws {
+        func hasCopyAddress(_ device: ADBDevice) throws -> Bool {
+            let sub = try XCTUnwrap(menu(for: .devices([device])).items[2].submenu)
+            return titles(sub).contains("Copy Address")
+        }
+        XCTAssertFalse(try hasCopyAddress(Sample.device("SER9")), "USB serial")
+        XCTAssertFalse(try hasCopyAddress(Sample.device("adb-R9CN4057BXJ-aBcDeF._adb-tls-connect._tcp")),
+                       "an mDNS serial is not an address that can be given to adb connect")
+        XCTAssertTrue(try hasCopyAddress(Sample.device("192.168.1.3:5555", usbPath: nil)))
+    }
+
+    func testCopyAddressCopiesTheSerial() throws {
+        let device = Sample.device("192.168.1.3:5555", usbPath: nil)
+        let sub = try XCTUnwrap(menu(for: .devices([device])).items[2].submenu)
+        try click(try item("Copy Address", in: sub))
+        XCTAssertEqual(clipboard.copied, ["192.168.1.3:5555"])
+    }
+
+    // MARK: Device details
+
+    func testDetailRowsShowTheVersionAndBatteryWhenKnown() throws {
+        let m = menu(for: .devices([Sample.device("SER9")]),
+                     details: ["SER9": DeviceDetails(androidVersion: "12", batteryLevel: 87)])
+        let rows = titles(try XCTUnwrap(m.items[2].submenu))
+        XCTAssertTrue(rows.contains("Android version: 12"))
+        XCTAssertTrue(rows.contains("Battery: 87%"))
+    }
+
+    func testDetailRowsAreLeftOutWhenUnknownOrForAnotherDevice() throws {
+        let other = ["OTHER": DeviceDetails(androidVersion: "12", batteryLevel: 87)]
+        let rows = titles(try XCTUnwrap(menu(for: .devices([Sample.device("SER9")]), details: other).items[2].submenu))
+        XCTAssertFalse(rows.contains { $0.hasPrefix("Android version") || $0.hasPrefix("Battery") })
+
+        let partial = ["SER9": DeviceDetails(androidVersion: "12", batteryLevel: nil)]
+        let partialRows = titles(try XCTUnwrap(menu(for: .devices([Sample.device("SER9")]), details: partial)
+            .items[2].submenu))
+        XCTAssertTrue(partialRows.contains("Android version: 12"))
+        XCTAssertFalse(partialRows.contains { $0.hasPrefix("Battery") })
+    }
+
+    // MARK: Fastboot section
+
+    private let fastbootDevice = FastbootDevice(serial: "ZY22XXXX", mode: "fastboot")
+
+    func testNoFastbootSectionWithoutFastbootDevices() {
+        XCTAssertFalse(titles(menu(for: .devices([Sample.device()]))).contains { $0.contains("Fastboot") })
+    }
+
+    func testFastbootSectionListsTheDevicesAfterTheAdbDevices() {
+        let m = menu(for: .devices([Sample.device("AAA")]), fastboot: [fastbootDevice])
+        XCTAssertEqual(Array(titles(m).prefix(6)),
+                       ["Android Devices (1)", "", "● Pixel 3a (AAA) — Connected", "",
+                        "Fastboot Devices (1)", "● ZY22XXXX — Fastboot"])
+    }
+
+    func testFastbootSectionAlsoShowsWhenNoAdbDeviceIsConnected() {
+        let m = menu(for: .devices([]), fastboot: [fastbootDevice])
+        XCTAssertTrue(titles(m).contains("Fastboot Devices (1)"))
+        XCTAssertTrue(titles(m).contains("● ZY22XXXX — Fastboot"))
+    }
+
+    func testFastbootDotIsPurple() throws {
+        let m = menu(for: .devices([]), fastboot: [fastbootDevice])
+        let entry = try item("● ZY22XXXX — Fastboot", in: m)
+        XCTAssertEqual(entry.attributedTitle?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor,
+                       .systemPurple)
+    }
+
+    func testFastbootSubmenuHasInfoCopyAndReboot() throws {
+        let m = menu(for: .devices([]), fastboot: [fastbootDevice])
+        let sub = try XCTUnwrap(try item("● ZY22XXXX — Fastboot", in: m).submenu)
+        XCTAssertEqual(titles(sub), ["Status: Fastboot", "Serial: ZY22XXXX", "", "Copy Serial Number",
+                                     "Reboot Device…"])
+    }
+
+    func testFastbootSubmenuActions() throws {
+        let m = menu(for: .devices([]), fastboot: [fastbootDevice])
+        let sub = try XCTUnwrap(try item("● ZY22XXXX — Fastboot", in: m).submenu)
+        try click(try item("Copy Serial Number", in: sub))
+        try click(try item("Reboot Device…", in: sub))
+        XCTAssertEqual(clipboard.copied, ["ZY22XXXX"])
+        XCTAssertEqual(handler.fastbootReboots, [fastbootDevice])
+    }
+
+    func testNoFastbootSectionWhenAdbFails() {
+        let m = menu(for: .failure(.timedOut), fastboot: [fastbootDevice])
+        XCTAssertFalse(titles(m).contains { $0.contains("Fastboot") })
+    }
+
+    // MARK: Restart ADB server
+
+    func testRestartServerItemIsOnlyShownWhenAdbIsInstalled() {
+        XCTAssertTrue(titles(menu(for: .devices([]))).contains("Restart ADB Server…"))
+        XCTAssertTrue(titles(menu(for: .failure(.timedOut))).contains("Restart ADB Server…"))
+        XCTAssertFalse(titles(menu(for: .adbNotFound(customPath: nil))).contains("Restart ADB Server…"))
+        XCTAssertFalse(titles(menu(for: nil)).contains("Restart ADB Server…"))
+    }
+
+    func testRestartServerItemSitsBetweenPreferencesAndQuit() {
+        let all = titles(menu(for: .devices([])))
+        XCTAssertEqual(Array(all.suffix(4)), ["Preferences…", "Restart ADB Server…", "", "Quit ADB Monitor"])
+    }
+
+    func testRestartServerItemInvokesTheHandler() throws {
+        try click(try item("Restart ADB Server…", in: menu(for: .devices([]))))
+        XCTAssertEqual(handler.restartServerCount, 1)
+    }
+
+    // MARK: New strings follow the language
+
+    func testNewItemsFollowTheSelectedLanguage() throws {
+        let m = menu(for: .devices([Sample.device("AAA")]), fastboot: [fastbootDevice],
+                     details: ["AAA": DeviceDetails(androidVersion: "12", batteryLevel: 5)], language: .indonesian)
+        XCTAssertTrue(titles(m).contains("Restart Server ADB…"))
+        XCTAssertTrue(titles(m).contains("Perangkat Fastboot (1)"))
+        let sub = titles(try XCTUnwrap(m.items[2].submenu))
+        XCTAssertTrue(sub.contains("Versi Android: 12"))
+        XCTAssertTrue(sub.contains("Baterai: 5%"))
+        XCTAssertTrue(sub.contains("Salin Awalan Perintah ADB"))
+        XCTAssertTrue(sub.contains("Reboot ke Recovery…"))
     }
 
     // MARK: Other behavior
@@ -280,7 +449,7 @@ final class StatusMenuBuilderTests: XCTestCase {
                                    "Connect to R9CN4057BXJ (192.168.1.5:37899)",
                                    "Pair with R9CN4057BXJ (192.168.1.5:41223)…",
                                    "", "Connect to IP Address…", "Pair Device…", "Pair with QR Code…",
-                                   "", "Refresh", "Preferences…", "", "Quit ADB Monitor"])
+                                   "", "Refresh", "Preferences…", "Restart ADB Server…", "", "Quit ADB Monitor"])
     }
 
     func testNoWirelessHeaderWhenNothingWasDiscovered() {

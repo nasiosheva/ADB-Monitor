@@ -144,4 +144,45 @@ enum L10nKey: String, CaseIterable {
     case prefsWireless
     case prefsWirelessDiscovery
     case prefsWirelessNote
+
+    // Power actions: restart into a special mode
+    case powerRecoveryMenu
+    case powerRecoveryVerb
+    case powerRecoveryConfirmTitle
+    case powerRecoveryConfirmBody
+    case powerRecoveryFailureTitle
+    case powerBootloaderMenu
+    case powerBootloaderVerb
+    case powerBootloaderConfirmTitle
+    case powerBootloaderConfirmBody
+    case powerBootloaderFailureTitle
+    case powerDownloadMenu
+    case powerDownloadVerb
+    case powerDownloadConfirmTitle
+    case powerDownloadConfirmBody
+    case powerDownloadFailureTitle
+
+    // ADB server
+    case menuRestartServer
+    case serverRestartVerb
+    case serverRestartConfirmTitle
+    case serverRestartConfirmBody
+    case serverRestartFailureTitle
+
+    // Copy
+    case menuCopyAdbPrefix
+    case menuCopyAddress
+
+    // Device details read from the device
+    case detailAndroidVersion
+    case detailBattery
+
+    // Fastboot
+    case menuFastbootHeader
+    case stateFastboot
+    case menuFastbootReboot
+    case fastbootRebootVerb
+    case fastbootRebootConfirmTitle
+    case fastbootRebootConfirmBody
+    case fastbootRebootFailureTitle
 }

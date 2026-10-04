@@ -11,6 +11,8 @@ import AppKit
 protocol AlertPresenting {
     /// `true` if the user approves. Blocks until the dialog is closed.
     func confirm(_ action: PowerAction, on device: ADBDevice) -> Bool
+    /// General confirmation (text already translated by the caller). `true` if the user approves.
+    func confirm(title: String, message: String, button: String) -> Bool
     func showFailure(of action: PowerAction, on device: ADBDevice, error: ADBError)
     /// General error dialog (title and body are already translated by the caller).
     func showError(title: String, message: String)
@@ -32,6 +34,16 @@ struct AppKitAlertPresenter: AlertPresenting {
         alert.informativeText = l10n.text(action.confirmBodyKey, device.serial)
         alert.alertStyle = .warning
         alert.addButton(withTitle: l10n.text(action.verbKey))
+        alert.addButton(withTitle: l10n.text(.commonCancel))
+        return run(alert) == .alertFirstButtonReturn
+    }
+
+    func confirm(title: String, message: String, button: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: button)
         alert.addButton(withTitle: l10n.text(.commonCancel))
         return run(alert) == .alertFirstButtonReturn
     }

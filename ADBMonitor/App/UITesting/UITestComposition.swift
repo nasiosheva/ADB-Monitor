@@ -27,8 +27,9 @@ final class ScriptedProcessRunner: ProcessRunning {
              arguments: [String],
              timeout: TimeInterval,
              completion: @escaping (Result<ProcessOutput, ProcessError>) -> Void) {
-        record("adb " + arguments.joined(separator: " "))
-        let output = world.run(arguments)
+        let isFastboot = executable.hasSuffix("fastboot")
+        record((isFastboot ? "fastboot " : "adb ") + arguments.joined(separator: " "))
+        let output = isFastboot ? world.runFastboot(arguments) : world.run(arguments)
         let result = ProcessOutput(stdout: output.stdout, stderr: output.stderr, exitCode: output.exitCode)
         // Asynchronous like `ProcessManager`, which delivers results on the main queue.
         DispatchQueue.main.async { completion(.success(result)) }
@@ -70,10 +71,12 @@ enum UITestComposition {
         let locator = FixedADBLocator(path: environment.scenario == .adbMissing ? nil : "/fake/adb")
         let service = ADBService(pathProvider: preferences, locator: locator,
                                  parser: DeviceListParser(), runner: runner)
+        let fastboot = FastbootService(locator: FixedADBLocator(path: "/fake/fastboot"), runner: runner)
         let localizer = Localizer(provider: preferences)
         let scheduler = RunLoopScheduler()
-        let monitor = DeviceMonitor(service: service, discovery: service, discoverySettings: preferences,
-                                    intervalProvider: preferences, scheduler: scheduler)
+        let monitor = DeviceMonitor(service: service, discovery: service, fastboot: fastboot,
+                                    discoverySettings: preferences, intervalProvider: preferences,
+                                    scheduler: scheduler)
         let alerts = AppKitAlertPresenter(localizer: localizer)
         let wireless = WirelessCoordinator(controller: service,
                                            switcher: WirelessSwitcher(controller: service, scheduler: scheduler,
@@ -83,13 +86,16 @@ enum UITestComposition {
                                                                       scheduler: scheduler, pollInterval: 0.2),
                                            qrWindow: AppKitPairingQRPresenter(localizer: localizer),
                                            alerts: alerts, monitor: monitor, localizer: localizer)
+        let tools = ToolsCoordinator(server: service, fastboot: fastboot, alerts: alerts, monitor: monitor,
+                                     localizer: localizer)
         let launchAtLogin = InMemoryLaunchAtLogin()
         let makePreferencesWindow: @MainActor () -> PreferencesWindowController = {
             PreferencesWindowController(preferences: preferences, locator: locator,
                                         launchAtLogin: launchAtLogin, localizer: localizer)
         }
         return AppCoordinator(monitor: monitor, service: service, alerts: alerts, wireless: wireless,
-                              settings: service, localizer: localizer,
+                              tools: tools, settings: service, localizer: localizer,
+                              detailsTracker: DeviceDetailsTracker(reader: service, refreshInterval: 5),
                               makeStatusBar: { StatusBarController(actionHandler: $0, localizer: localizer) },
                               makePreferencesWindow: makePreferencesWindow)
     }

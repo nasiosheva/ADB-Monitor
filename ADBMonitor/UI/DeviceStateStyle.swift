@@ -35,8 +35,19 @@ extension ADBDevice.State {
     /// on these menu items (SF Symbols, bitmaps, and drawing handlers all failed to show), while colored text
     /// shows up and follows light/dark mode through dynamic system colors.
     func menuTitle(_ text: String) -> NSAttributedString {
+        MenuTitleStyle.dotted(text, color: indicatorColor)
+    }
+}
+
+/// Menu titles that start with a colored dot.
+enum MenuTitleStyle {
+
+    /// Dot color for devices in fastboot mode (not an adb state, so it is not part of `ADBDevice.State`).
+    static let fastbootColor = NSColor.systemPurple
+
+    static func dotted(_ text: String, color: NSColor) -> NSAttributedString {
         let font = NSFont.menuFont(ofSize: 0)
-        let dot: [NSAttributedString.Key: Any] = [.foregroundColor: indicatorColor, .font: font]
+        let dot: [NSAttributedString.Key: Any] = [.foregroundColor: color, .font: font]
         let title = NSMutableAttributedString(string: "● ", attributes: dot)
         title.append(NSAttributedString(string: text, attributes: [.font: font]))
         return title

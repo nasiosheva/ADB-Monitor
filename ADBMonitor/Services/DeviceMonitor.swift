@@ -13,6 +13,10 @@ protocol DeviceMonitoring: AnyObject {
     var onStatusChange: ((ADBStatus) -> Void)? { get set }
     /// Called only when the list of devices available over Wi-Fi (not yet connected) changes.
     var onWirelessChange: (([WirelessService]) -> Void)? { get set }
+    /// Called only when the list of devices in fastboot mode changes.
+    var onFastbootChange: (([FastbootDevice]) -> Void)? { get set }
+    /// Called after every successful poll with the devices adb listed, even when nothing changed.
+    var onPoll: (([ADBDevice]) -> Void)? { get set }
     func start()
     func stop()
     /// Polls right away. If a poll is already running, one more round runs after it finishes.
@@ -28,9 +32,12 @@ final class DeviceMonitor: DeviceMonitoring {
 
     var onStatusChange: ((ADBStatus) -> Void)?
     var onWirelessChange: (([WirelessService]) -> Void)?
+    var onFastbootChange: (([FastbootDevice]) -> Void)?
+    var onPoll: (([ADBDevice]) -> Void)?
 
     private let service: ADBServicing
     private let discovery: WirelessDiscovering
+    private let fastboot: FastbootListing
     private let discoverySettings: WirelessDiscoveryProviding
     private let intervalProvider: RefreshIntervalProviding
     private let scheduler: Scheduling
@@ -38,6 +45,7 @@ final class DeviceMonitor: DeviceMonitoring {
 
     private var status: ADBStatus?
     private var wireless: [WirelessService] = []
+    private var fastbootDevices: [FastbootDevice] = []
     private var scheduledPoll: ScheduledTask?
     private var isRunning = false
     private var isPolling = false
@@ -45,12 +53,14 @@ final class DeviceMonitor: DeviceMonitoring {
 
     init(service: ADBServicing,
          discovery: WirelessDiscovering,
+         fastboot: FastbootListing,
          discoverySettings: WirelessDiscoveryProviding,
          intervalProvider: RefreshIntervalProviding,
          scheduler: Scheduling,
          notificationCenter: NotificationCenter = .default) {
         self.service = service
         self.discovery = discovery
+        self.fastboot = fastboot
         self.discoverySettings = discoverySettings
         self.intervalProvider = intervalProvider
         self.scheduler = scheduler
@@ -103,20 +113,40 @@ final class DeviceMonitor: DeviceMonitoring {
             guard let self = self else { return }
             let newStatus = ADBStatus(result: result)
 
-            // Wi-Fi discovery only matters when ADB works and the user has not turned it off.
-            guard case .devices(let devices) = newStatus, self.discoverySettings.wirelessDiscoveryEnabled else {
-                self.finishPoll(with: newStatus, wireless: [])
+            // Wi-Fi and fastboot lookups only matter when ADB works.
+            guard case .devices(let devices) = newStatus else {
+                self.finishPoll(with: newStatus, wireless: [], fastboot: [])
                 return
             }
-            self.discovery.discoverWireless { [weak self] discovered in
-                // A discovery failure (for example mDNS unavailable) is not an error: just empty the Wi-Fi list.
-                let available = ((try? discovered.get()) ?? []).filter { !$0.isConnected(among: devices) }
-                self?.finishPoll(with: newStatus, wireless: available)
+            self.discoverWireless(excluding: devices) { wireless in
+                self.listFastboot { fastboot in
+                    self.finishPoll(with: newStatus, wireless: wireless, fastboot: fastboot)
+                }
             }
         }
     }
 
-    private func finishPoll(with newStatus: ADBStatus, wireless newWireless: [WirelessService]) {
+    /// Wi-Fi services that are not connected yet. Empty when the user turned discovery off.
+    private func discoverWireless(excluding devices: [ADBDevice], completion: @escaping ([WirelessService]) -> Void) {
+        guard discoverySettings.wirelessDiscoveryEnabled else {
+            completion([])
+            return
+        }
+        discovery.discoverWireless { discovered in
+            // A discovery failure (for example mDNS unavailable) is not an error: just empty the Wi-Fi list.
+            completion(((try? discovered.get()) ?? []).filter { !$0.isConnected(among: devices) })
+        }
+    }
+
+    /// Devices in fastboot mode. A missing `fastboot` or a failure is not an error: the list is just empty.
+    private func listFastboot(completion: @escaping ([FastbootDevice]) -> Void) {
+        fastboot.listFastboot { result in
+            completion((try? result.get()) ?? [])
+        }
+    }
+
+    private func finishPoll(with newStatus: ADBStatus, wireless newWireless: [WirelessService],
+                            fastboot newFastboot: [FastbootDevice]) {
         isPolling = false
         guard isRunning else { return }
 
@@ -127,6 +157,13 @@ final class DeviceMonitor: DeviceMonitoring {
         if newWireless != wireless {
             wireless = newWireless
             onWirelessChange?(newWireless)
+        }
+        if newFastboot != fastbootDevices {
+            fastbootDevices = newFastboot
+            onFastbootChange?(newFastboot)
+        }
+        if case .devices(let devices) = newStatus {
+            onPoll?(devices)
         }
 
         if needsAnotherPoll {

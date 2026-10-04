@@ -18,6 +18,8 @@ final class AppCoordinatorTests: XCTestCase {
     private var preferencesWindow: FakePreferencesWindow!
     private var wirelessHandler: RecordingWirelessHandler!
     private var settings: FakeSettingsOpener!
+    private var toolsHandler: RecordingMenuHandler!
+    private var detailsTracker: FakeDetailsTracker!
     private var log: CallLog!
     private var statusBarFactoryCalls = 0
     private var preferencesFactoryCalls = 0
@@ -36,6 +38,8 @@ final class AppCoordinatorTests: XCTestCase {
         preferencesWindow = FakePreferencesWindow()
         wirelessHandler = RecordingWirelessHandler()
         settings = FakeSettingsOpener()
+        toolsHandler = RecordingMenuHandler()
+        detailsTracker = FakeDetailsTracker()
         settings.log = log
         statusBarFactoryCalls = 0
         preferencesFactoryCalls = 0
@@ -48,8 +52,10 @@ final class AppCoordinatorTests: XCTestCase {
                                      service: service,
                                      alerts: alerts,
                                      wireless: wirelessHandler,
+                                     tools: toolsHandler,
                                      settings: settings,
                                      localizer: english,
+                                     detailsTracker: detailsTracker,
                                      makeStatusBar: { [unowned self] _ in
                                          statusBarFactoryCalls += 1
                                          return statusBar
@@ -170,6 +176,40 @@ final class AppCoordinatorTests: XCTestCase {
         XCTAssertEqual(wirelessHandler.calls,
                        ["connect:1.2.3.4:5", "connectByAddress", "pair:1.2.3.4:6", "pair:nil",
                         "disconnect:SER1", "switch:SER1"])
+    }
+
+    // MARK: - Fastboot, details, and tools
+
+    func testFastbootListFromTheMonitorIsRenderedOnTheStatusBar() throws {
+        coordinator.start()
+        let device = FastbootDevice(serial: "ZY22", mode: "fastboot")
+        try XCTUnwrap(monitor.onFastbootChange)([device])
+        try XCTUnwrap(monitor.onFastbootChange)([])
+        XCTAssertEqual(statusBar.renderedFastboot, [[device], []])
+    }
+
+    func testEveryPollIsHandedToTheDetailsTracker() throws {
+        coordinator.start()
+        let devices = [Sample.device("A"), Sample.device("B")]
+        try XCTUnwrap(monitor.onPoll)(devices)
+        try XCTUnwrap(monitor.onPoll)(devices)
+        XCTAssertEqual(detailsTracker.tracked, [devices, devices])
+    }
+
+    func testDetailsFromTheTrackerAreRenderedOnTheStatusBar() throws {
+        coordinator.start()
+        let details = ["A": DeviceDetails(androidVersion: "12", batteryLevel: 50)]
+        try XCTUnwrap(detailsTracker.onChange)(details)
+        XCTAssertEqual(statusBar.renderedDetails, [details])
+    }
+
+    func testToolsActionsAreForwardedToTheToolsHandler() {
+        let device = FastbootDevice(serial: "ZY22", mode: "fastboot")
+        coordinator.statusMenuDidRequestRestartServer()
+        coordinator.statusMenu(didRequestRebootFastbootDevice: device)
+        XCTAssertEqual(toolsHandler.restartServerCount, 1)
+        XCTAssertEqual(toolsHandler.fastbootReboots, [device])
+        XCTAssertTrue(alerts.generalConfirmations.isEmpty, "the confirmation belongs to ToolsCoordinator")
     }
 
     // MARK: - Developer options

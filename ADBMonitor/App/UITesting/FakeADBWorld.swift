@@ -35,9 +35,12 @@ final class FakeADBWorld {
     static let unreachableHost = "10.0.0.99"
     static let validPairingCode = "123456"
     static let pixelWifiAddress = "192.168.1.50"
+    static let fastbootSerial = "FASTBOOT001"
 
     private(set) var devices: [Device]
     private(set) var services: [Service]
+    /// Serials of devices that are in fastboot mode.
+    private(set) var fastbootSerials: [String]
     private let scenario: UITestScenario
     private var nextTransportID = 1
 
@@ -57,9 +60,11 @@ final class FakeADBWorld {
                 Service(name: "adb-TABLET9-aBcDeF", type: "_adb-tls-connect._tcp.", address: "192.168.1.20:37899"),
                 Service(name: "adb-PHONE77-xYz123", type: "_adb-tls-pairing._tcp.", address: "192.168.1.21:41223"),
             ]
+            fastbootSerials = [Self.fastbootSerial]
         case .empty, .adbMissing, .adbError:
             devices = []
             services = []
+            fastbootSerials = []
         }
     }
 
@@ -84,6 +89,8 @@ final class FakeADBWorld {
 
         switch (serial, args.first ?? "") {
         case (nil, "devices"): return listDevices()
+        case (nil, "kill-server"): return Output()
+        case (nil, "start-server"): return Output(stderr: "* daemon started successfully\n")
         case (nil, "mdns"): return listServices()
         case (nil, "connect"): return connect(args.dropFirst().first ?? "")
         case (nil, "disconnect"): return disconnect(args.dropFirst().first ?? "")
@@ -152,6 +159,11 @@ final class FakeADBWorld {
 
     private func shell(serial: String, _ args: [String]) -> Output {
         guard knows(serial) else { return Output(stderr: "adb: device '\(serial)' not found\n", exitCode: 1) }
+        // The details command is one string: "getprop ro.build.version.release; dumpsys battery ...".
+        if args.first?.hasPrefix("getprop ro.build.version.release") == true {
+            return Output(stdout: "12\nCurrent Battery Service state:\n  AC powered: false\n"
+                + "  level: 87\n  scale: 100\n")
+        }
         switch args.prefix(2).joined(separator: " ") {
         case "reboot -p":
             return Output()
@@ -161,6 +173,30 @@ final class FakeADBWorld {
             return Output(stdout: "1.1.1.1 via 192.168.1.1 dev wlan0 src \(Self.pixelWifiAddress) uid 2000\n")
         default:
             return Output()
+        }
+    }
+
+    // MARK: - fastboot
+
+    /// Answers a `fastboot` command (arguments without the executable name).
+    func runFastboot(_ arguments: [String]) -> Output {
+        var args = arguments
+        var serial: String?
+        if args.first == "-s", args.count >= 2 {
+            serial = args[1]
+            args.removeFirst(2)
+        }
+        switch (serial, args.first ?? "") {
+        case (nil, "devices"):
+            return Output(stdout: fastbootSerials.map { "\($0)\tfastboot\n" }.joined())
+        case (let serial?, "reboot"):
+            guard fastbootSerials.contains(serial) else {
+                return Output(stderr: "fastboot: error: no devices/emulators found\n", exitCode: 1)
+            }
+            fastbootSerials.removeAll { $0 == serial }
+            return Output(stderr: "Rebooting...\n\nFinished. Total time: 0.002s\n")
+        default:
+            return Output(stderr: "fastboot: unknown command \(args.first ?? "")\n", exitCode: 1)
         }
     }
 }

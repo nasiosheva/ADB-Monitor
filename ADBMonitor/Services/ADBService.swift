@@ -28,17 +28,20 @@ final class ADBService: ADBServicing {
     private let parser: DeviceListParsing
     private let runner: ProcessRunning
     let serviceParser: WirelessServiceParsing
+    let detailsParser: DeviceDetailsParsing
 
     init(pathProvider: ADBPathProviding,
          locator: ADBLocating,
          parser: DeviceListParsing,
          runner: ProcessRunning,
-         serviceParser: WirelessServiceParsing = WirelessServiceParser()) {
+         serviceParser: WirelessServiceParsing = WirelessServiceParser(),
+         detailsParser: DeviceDetailsParsing = DeviceDetailsParser()) {
         self.pathProvider = pathProvider
         self.locator = locator
         self.parser = parser
         self.runner = runner
         self.serviceParser = serviceParser
+        self.detailsParser = detailsParser
     }
 
     func listDevices(completion: @escaping (Result<[ADBDevice], ADBError>) -> Void) {
@@ -69,7 +72,7 @@ final class ADBService: ADBServicing {
         }
     }
 
-    private static func interpret(_ result: RawResult, customPath: String?) -> CommandResult {
+    static func interpret(_ result: RawResult, customPath: String?) -> CommandResult {
         switch result {
         case .success(let output) where output.exitCode == 0:
             return .success(output)

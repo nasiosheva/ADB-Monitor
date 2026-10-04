@@ -16,8 +16,10 @@ final class AppCoordinator: StatusMenuActionHandling {
     private let service: ADBServicing
     private let alerts: AlertPresenting
     private let wireless: WirelessActionHandling
+    private let tools: ToolsActionHandling
     private let settings: DeviceSettingsOpening
     private let localizer: Localizing
+    private let detailsTracker: DeviceDetailsTracking
     private let makeStatusBar: @MainActor (StatusMenuActionHandling) -> StatusBarRendering
     private let makePreferencesWindow: @MainActor () -> PreferencesPresenting
 
@@ -28,16 +30,20 @@ final class AppCoordinator: StatusMenuActionHandling {
          service: ADBServicing,
          alerts: AlertPresenting,
          wireless: WirelessActionHandling,
+         tools: ToolsActionHandling,
          settings: DeviceSettingsOpening,
          localizer: Localizing,
+         detailsTracker: DeviceDetailsTracking,
          makeStatusBar: @escaping @MainActor (StatusMenuActionHandling) -> StatusBarRendering,
          makePreferencesWindow: @escaping @MainActor () -> PreferencesPresenting) {
         self.monitor = monitor
         self.service = service
         self.alerts = alerts
         self.wireless = wireless
+        self.tools = tools
         self.settings = settings
         self.localizer = localizer
+        self.detailsTracker = detailsTracker
         self.makeStatusBar = makeStatusBar
         self.makePreferencesWindow = makePreferencesWindow
     }
@@ -51,6 +57,16 @@ final class AppCoordinator: StatusMenuActionHandling {
         }
         monitor.onWirelessChange = { [weak statusBar] services in
             statusBar?.renderWireless(services)
+        }
+        monitor.onFastbootChange = { [weak statusBar] devices in
+            statusBar?.renderFastboot(devices)
+        }
+        // The tracker decides by itself which devices need to be read again; it is told about every poll.
+        monitor.onPoll = { [weak detailsTracker] devices in
+            detailsTracker?.track(devices: devices)
+        }
+        detailsTracker.onChange = { [weak statusBar] details in
+            statusBar?.renderDetails(details)
         }
         monitor.start()
     }
@@ -117,5 +133,15 @@ final class AppCoordinator: StatusMenuActionHandling {
 
     func statusMenu(didRequestSwitchToWireless device: ADBDevice) {
         wireless.statusMenu(didRequestSwitchToWireless: device)
+    }
+
+    // MARK: - ToolsActionHandling (forwarded to ToolsCoordinator)
+
+    func statusMenuDidRequestRestartServer() {
+        tools.statusMenuDidRequestRestartServer()
+    }
+
+    func statusMenu(didRequestRebootFastbootDevice device: FastbootDevice) {
+        tools.statusMenu(didRequestRebootFastbootDevice: device)
     }
 }
