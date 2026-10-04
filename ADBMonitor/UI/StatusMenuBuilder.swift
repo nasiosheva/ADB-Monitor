@@ -72,10 +72,9 @@ final class StatusMenuBuilder: NSObject {
     // MARK: - Device item
 
     private func deviceItem(for device: ADBDevice) -> NSMenuItem {
-        let item = NSMenuItem(title: "\(device.displayName) (\(device.serial)) — \(device.state.label)",
-                              action: nil,
-                              keyEquivalent: "")
-        item.image = device.state.indicatorImage()
+        let title = "\(device.displayName) (\(device.serial)) — \(device.state.label)"
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.attributedTitle = device.state.menuTitle(title)
         item.toolTip = device.serial
         item.submenu = detailMenu(for: device)
         return item

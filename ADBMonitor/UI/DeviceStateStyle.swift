@@ -29,15 +29,16 @@ extension ADBDevice.State {
         }
     }
 
-    /// Titik berwarna; drawing handler dievaluasi ulang saat appearance berubah sehingga warna tetap benar di dark mode.
-    func indicatorImage(size: CGFloat = 10) -> NSImage {
-        let color = indicatorColor
-        let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
-            color.setFill()
-            NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1)).fill()
-            return true
-        }
-        image.isTemplate = false
-        return image
+    /// Judul menu dengan titik berwarna di depan, misalnya "● Pixel 3a (…) — Connected".
+    ///
+    /// Warna dibawa oleh judul beratribut, bukan `NSMenuItem.image`: macOS tidak menampilkan gambar kustom
+    /// pada item menu ini (SF Symbol, bitmap, maupun drawing handler tidak muncul), sedangkan warna pada teks
+    /// tampil dan mengikuti light/dark mode lewat warna sistem dinamis.
+    func menuTitle(_ text: String) -> NSAttributedString {
+        let font = NSFont.menuFont(ofSize: 0)
+        let dot: [NSAttributedString.Key: Any] = [.foregroundColor: indicatorColor, .font: font]
+        let title = NSMutableAttributedString(string: "● ", attributes: dot)
+        title.append(NSAttributedString(string: text, attributes: [.font: font]))
+        return title
     }
 }
