@@ -49,7 +49,8 @@ final class TranslationTableTests: XCTestCase {
         for language in AppLanguage.allCases where language != .english {
             for key in L10nKey.allCases {
                 let english = Translations.english[key] ?? ""
-                guard english.count > 12, !english.contains("brew") else { continue }
+                // Hanya kalimat (mengandung spasi); contoh teknis seperti "192.168.1.5:5555" sama di semua bahasa.
+                guard english.count > 12, english.contains(" "), !english.contains("brew") else { continue }
                 XCTAssertNotEqual(Translations.table(for: language)[key], english,
                                   "\(language.rawValue).\(key) masih berbahasa Inggris")
             }

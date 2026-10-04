@@ -30,11 +30,13 @@ final class StatusMenuBuilderTests: XCTestCase {
         return StatusMenuBuilder(handler: handler, localizer: localizer)
     }
 
-    private func menu(for status: ADBStatus?, language: AppLanguage = .english) -> NSMenu {
+    private func menu(for status: ADBStatus?,
+                      wireless: [WirelessService] = [],
+                      language: AppLanguage = .english) -> NSMenu {
         let menu = NSMenu()
         let builder = makeBuilder(language)
         builders.append(builder)
-        builder.populate(menu, for: status)
+        builder.populate(menu, for: status, wireless: wireless)
         return menu
     }
 
@@ -133,7 +135,8 @@ final class StatusMenuBuilderTests: XCTestCase {
         XCTAssertEqual(try submenuTitles(of: .devices([Sample.device("SER1")])),
                        ["Status: Connected", "Serial: SER1", "Connection: USB", "Model: Pixel 3a",
                         "Product: sargo", "Device: sargo", "Transport ID: 2",
-                        "", "Copy Serial Number", "Restart Device…", "Shut Down Device…"])
+                        "", "Copy Serial Number", "Switch to Wi-Fi", "Open Developer Options",
+                        "Restart Device…", "Shut Down Device…"])
     }
 
     func testSubmenuOmitsMissingFields() throws {
@@ -211,10 +214,10 @@ final class StatusMenuBuilderTests: XCTestCase {
     func testPopulateRefillsTheSameMenuWithoutAccumulating() {
         let builder = makeBuilder()
         let m = NSMenu()
-        builder.populate(m, for: nil)
+        builder.populate(m, for: .devices([Sample.device()]))
         let first = m.items.count
-        builder.populate(m, for: nil)
-        builder.populate(m, for: .devices([]))
+        builder.populate(m, for: .devices([Sample.device()]))
+        builder.populate(m, for: .devices([Sample.device()]))
         XCTAssertEqual(m.items.count, first)
     }
 
@@ -231,6 +234,122 @@ final class StatusMenuBuilderTests: XCTestCase {
             let nonSeparators = m.items.filter { !$0.isSeparatorItem }
             XCTAssertTrue(nonSeparators.allSatisfy { !$0.title.isEmpty }, "\(language.rawValue)")
         }
+    }
+
+    // MARK: - Developer options
+
+    func testDeveloperOptionsItemIsEnabledOnlyForReadyDevices() throws {
+        func enabled(_ state: ADBDevice.State) throws -> Bool {
+            let m = menu(for: .devices([Sample.device(state: state)]))
+            return try item("Open Developer Options", in: try XCTUnwrap(m.items[2].submenu)).isEnabled
+        }
+        XCTAssertTrue(try enabled(.device))
+        for state in [ADBDevice.State.offline, .unauthorized, .recovery, .noPermissions, .bootloader] {
+            XCTAssertFalse(try enabled(state), "\(state)")
+        }
+    }
+
+    func testDeveloperOptionsItemIsAvailableForWifiDevicesToo() throws {
+        let rows = try submenuTitles(of: .devices([Sample.device("192.168.1.5:5555", usbPath: nil)]))
+        XCTAssertTrue(rows.contains("Open Developer Options"))
+    }
+
+    func testClickingDeveloperOptionsSendsTheDevice() throws {
+        let device = Sample.device("SER5")
+        let m = menu(for: .devices([device]))
+        try click(try item("Open Developer Options", in: try XCTUnwrap(m.items[2].submenu)))
+        XCTAssertEqual(handler.developerOptionsRequests, [device])
+    }
+
+    func testDeveloperOptionsItemFollowsTheSelectedLanguage() throws {
+        let m = menu(for: .devices([Sample.device()]), language: .indonesian)
+        XCTAssertNoThrow(try item("Buka Opsi Pengembang", in: try XCTUnwrap(m.items[2].submenu)))
+    }
+
+    // MARK: - Wi-Fi
+
+    private let connectService = WirelessService(name: "adb-R9CN4057BXJ-aBcDeF", kind: .connect,
+                                                 host: "192.168.1.5", port: 37899)
+    private let pairingService = WirelessService(name: "adb-R9CN4057BXJ-xYz123", kind: .pairing,
+                                                 host: "192.168.1.5", port: 41223)
+
+    func testWirelessSectionListsDiscoveredServices() {
+        let m = menu(for: .devices([]), wireless: [connectService, pairingService])
+        XCTAssertEqual(titles(m), ["No devices connected", "",
+                                   "Available over Wi-Fi (2)",
+                                   "Connect to R9CN4057BXJ (192.168.1.5:37899)",
+                                   "Pair with R9CN4057BXJ (192.168.1.5:41223)…",
+                                   "", "Connect to IP Address…", "Pair Device…",
+                                   "", "Refresh", "Preferences…", "", "Quit ADB Monitor"])
+    }
+
+    func testNoWirelessHeaderWhenNothingWasDiscovered() {
+        XCTAssertFalse(titles(menu(for: .devices([Sample.device()]))).contains { $0.hasPrefix("Available over") })
+    }
+
+    func testManualWirelessCommandsAreShownEvenWithoutDiscovery() {
+        XCTAssertTrue(titles(menu(for: .devices([]))).contains("Connect to IP Address…"))
+        XCTAssertTrue(titles(menu(for: .devices([]))).contains("Pair Device…"))
+    }
+
+    func testWirelessItemsAreHiddenWhenAdbIsUnavailable() {
+        for status in [ADBStatus?.none, .adbNotFound(customPath: nil), .failure(.timedOut)] {
+            let all = titles(menu(for: status, wireless: [connectService]))
+            XCTAssertFalse(all.contains("Connect to IP Address…"), "\(String(describing: status))")
+            XCTAssertFalse(all.contains { $0.hasPrefix("Available over") })
+        }
+    }
+
+    func testClickingWirelessItemsInvokesTheHandler() throws {
+        let m = menu(for: .devices([]), wireless: [connectService, pairingService])
+        try click(try item("Connect to R9CN4057BXJ (192.168.1.5:37899)", in: m))
+        try click(try item("Pair with R9CN4057BXJ (192.168.1.5:41223)…", in: m))
+        try click(try item("Connect to IP Address…", in: m))
+        try click(try item("Pair Device…", in: m))
+        XCTAssertEqual(handler.connectAddresses, ["192.168.1.5:37899"])
+        XCTAssertEqual(handler.pairingRequests.count, 2)
+        XCTAssertEqual(handler.pairingRequests[0], "192.168.1.5:41223")
+        XCTAssertNil(handler.pairingRequests[1] ?? nil, "pairing manual tanpa alamat terisi")
+        XCTAssertEqual(handler.connectByAddressCount, 1)
+    }
+
+    func testNetworkDeviceOffersDisconnectOnly() throws {
+        let rows = try submenuTitles(of: .devices([Sample.device("192.168.1.5:5555", usbPath: nil)]))
+        XCTAssertTrue(rows.contains("Disconnect"))
+        XCTAssertFalse(rows.contains("Switch to Wi-Fi"))
+    }
+
+    func testReadyUSBDeviceOffersSwitchToWifiOnly() throws {
+        let rows = try submenuTitles(of: .devices([Sample.device("USB1", state: .device)]))
+        XCTAssertTrue(rows.contains("Switch to Wi-Fi"))
+        XCTAssertFalse(rows.contains("Disconnect"))
+    }
+
+    func testOtherDevicesOfferNeitherWirelessAction() throws {
+        let cases = [Sample.device("USB1", state: .offline),
+                     Sample.device("USB2", state: .unauthorized),
+                     Sample.device("emulator-5554", usbPath: nil)]
+        for device in cases {
+            let rows = try submenuTitles(of: .devices([device]))
+            XCTAssertFalse(rows.contains("Switch to Wi-Fi") || rows.contains("Disconnect"), device.serial)
+        }
+    }
+
+    func testDisconnectAndSwitchItemsSendTheDevice() throws {
+        let wifi = Sample.device("192.168.1.5:5555", usbPath: nil)
+        let usb = Sample.device("USB1")
+        let m = menu(for: .devices([wifi, usb]))
+        try click(try item("Disconnect", in: try XCTUnwrap(m.items[2].submenu)))
+        try click(try item("Switch to Wi-Fi", in: try XCTUnwrap(m.items[3].submenu)))
+        XCTAssertEqual(handler.disconnects, [wifi])
+        XCTAssertEqual(handler.switches, [usb])
+    }
+
+    func testWirelessItemsFollowTheSelectedLanguage() {
+        let m = menu(for: .devices([]), wireless: [connectService], language: .indonesian)
+        XCTAssertTrue(titles(m).contains("Tersedia lewat Wi-Fi (1)"))
+        XCTAssertTrue(titles(m).contains("Hubungkan ke R9CN4057BXJ (192.168.1.5:37899)"))
+        XCTAssertTrue(titles(m).contains("Hubungkan ke Alamat IP…"))
     }
 }
 

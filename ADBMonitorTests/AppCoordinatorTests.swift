@@ -16,6 +16,8 @@ final class AppCoordinatorTests: XCTestCase {
     private var alerts: FakeAlerts!
     private var statusBar: FakeStatusBar!
     private var preferencesWindow: FakePreferencesWindow!
+    private var wirelessHandler: RecordingWirelessHandler!
+    private var settings: FakeSettingsOpener!
     private var log: CallLog!
     private var statusBarFactoryCalls = 0
     private var preferencesFactoryCalls = 0
@@ -32,14 +34,22 @@ final class AppCoordinatorTests: XCTestCase {
         alerts.log = log
         statusBar = FakeStatusBar()
         preferencesWindow = FakePreferencesWindow()
+        wirelessHandler = RecordingWirelessHandler()
+        settings = FakeSettingsOpener()
+        settings.log = log
         statusBarFactoryCalls = 0
         preferencesFactoryCalls = 0
 
         let statusBar = statusBar!
         let preferencesWindow = preferencesWindow!
+        let english = Localizer(provider: StubLanguage(languagePreference: .explicit(.english)),
+                                notificationCenter: NotificationCenter())
         coordinator = AppCoordinator(monitor: monitor,
                                      service: service,
                                      alerts: alerts,
+                                     wireless: wirelessHandler,
+                                     settings: settings,
+                                     localizer: english,
                                      makeStatusBar: { [unowned self] _ in
                                          statusBarFactoryCalls += 1
                                          return statusBar
@@ -137,5 +147,49 @@ final class AppCoordinatorTests: XCTestCase {
             coordinator.statusMenu(didRequest: action, on: Sample.device())
             XCTAssertEqual(Array(log.entries.dropFirst(before)), ["confirm", "perform", "refresh"], "\(action)")
         }
+    }
+
+    // MARK: - Wi-Fi
+
+    func testWirelessListFromTheMonitorIsRenderedOnTheStatusBar() throws {
+        coordinator.start()
+        let service = WirelessService(name: "adb-A-aBcDeF", kind: .connect, host: "1.2.3.4", port: 5)
+        try XCTUnwrap(monitor.onWirelessChange)([service])
+        try XCTUnwrap(monitor.onWirelessChange)([])
+        XCTAssertEqual(statusBar.renderedWireless, [[service], []])
+    }
+
+    func testWirelessActionsAreForwardedToTheWirelessHandler() {
+        let device = Sample.device("SER1")
+        coordinator.statusMenu(didRequestConnectTo: "1.2.3.4:5")
+        coordinator.statusMenuDidRequestConnectByAddress()
+        coordinator.statusMenu(didRequestPairingWith: "1.2.3.4:6")
+        coordinator.statusMenu(didRequestPairingWith: nil)
+        coordinator.statusMenu(didRequestDisconnect: device)
+        coordinator.statusMenu(didRequestSwitchToWireless: device)
+        XCTAssertEqual(wirelessHandler.calls,
+                       ["connect:1.2.3.4:5", "connectByAddress", "pair:1.2.3.4:6", "pair:nil",
+                        "disconnect:SER1", "switch:SER1"])
+    }
+
+    // MARK: - Developer options
+
+    func testOpenDeveloperOptionsUsesTheDeviceSerial() {
+        coordinator.statusMenu(didRequestOpenDeveloperOptionsOn: Sample.device("SER-D"))
+        XCTAssertEqual(settings.serials, ["SER-D"])
+        XCTAssertTrue(alerts.errors.isEmpty)
+    }
+
+    func testOpenDeveloperOptionsFailureShowsTheDeviceNameAndTheAdbMessage() {
+        settings.result = .failure(.commandFailed("Error: Activity not started, unable to resolve Intent"))
+        coordinator.statusMenu(didRequestOpenDeveloperOptionsOn: Sample.device("S", model: "Pixel 3a"))
+        XCTAssertEqual(alerts.errors.first?.title, "Could not open Developer options on Pixel 3a")
+        XCTAssertEqual(alerts.errors.first?.message, "Error: Activity not started, unable to resolve Intent")
+    }
+
+    func testOpeningDeveloperOptionsDoesNotAskForConfirmationOrRefresh() {
+        coordinator.statusMenu(didRequestOpenDeveloperOptionsOn: Sample.device())
+        XCTAssertTrue(alerts.confirmations.isEmpty, "tidak merusak apa pun, jadi tanpa dialog konfirmasi")
+        XCTAssertEqual(monitor.refreshCount, 0, "tidak mengubah daftar device")
     }
 }

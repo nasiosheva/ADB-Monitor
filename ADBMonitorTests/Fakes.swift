@@ -86,6 +86,9 @@ final class FakeScheduler: Scheduling {
         scheduled.append((interval, action, task))
         return task
     }
+
+    /// Melepas semua closure tersimpan, meniru `Timer` yang melepas closure-nya setelah berjalan.
+    func reset() { scheduled.removeAll() }
 }
 
 struct StubInterval: RefreshIntervalProviding {
@@ -101,6 +104,7 @@ struct StubLanguage: LanguageProviding {
 @MainActor
 final class FakeMonitor: DeviceMonitoring {
     var onStatusChange: ((ADBStatus) -> Void)?
+    var onWirelessChange: (([WirelessService]) -> Void)?
     private(set) var startCount = 0
     private(set) var stopCount = 0
     private(set) var refreshCount = 0
@@ -119,6 +123,8 @@ final class FakeAlerts: AlertPresenting {
     var confirmAnswer = true
     private(set) var confirmations: [(action: PowerAction, device: ADBDevice)] = []
     private(set) var failures: [(action: PowerAction, device: ADBDevice, error: ADBError)] = []
+    private(set) var errors: [(title: String, message: String)] = []
+    private(set) var infos: [(title: String, message: String)] = []
     var log: CallLog?
 
     func confirm(_ action: PowerAction, on device: ADBDevice) -> Bool {
@@ -131,12 +137,24 @@ final class FakeAlerts: AlertPresenting {
         failures.append((action, device, error))
         log?.record("failure")
     }
+
+    func showError(title: String, message: String) {
+        errors.append((title, message))
+        log?.record("error")
+    }
+
+    func showInfo(title: String, message: String) {
+        infos.append((title, message))
+        log?.record("info")
+    }
 }
 
 @MainActor
 final class FakeStatusBar: StatusBarRendering {
     private(set) var rendered: [ADBStatus?] = []
+    private(set) var renderedWireless: [[WirelessService]] = []
     func render(_ status: ADBStatus?) { rendered.append(status) }
+    func renderWireless(_ services: [WirelessService]) { renderedWireless.append(services) }
 }
 
 @MainActor
@@ -156,6 +174,165 @@ final class RecordingMenuHandler: StatusMenuActionHandling {
     func statusMenuDidRequestPreferences() { preferencesCount += 1 }
     func statusMenuDidRequestQuit() { quitCount += 1 }
     func statusMenu(didRequest action: PowerAction, on device: ADBDevice) { powerRequests.append((action, device)) }
+
+    private(set) var developerOptionsRequests: [ADBDevice] = []
+    func statusMenu(didRequestOpenDeveloperOptionsOn device: ADBDevice) { developerOptionsRequests.append(device) }
+
+    // Wi-Fi
+    private(set) var connectAddresses: [String] = []
+    private(set) var connectByAddressCount = 0
+    private(set) var pairingRequests: [String?] = []
+    private(set) var disconnects: [ADBDevice] = []
+    private(set) var switches: [ADBDevice] = []
+
+    func statusMenu(didRequestConnectTo address: String) { connectAddresses.append(address) }
+    func statusMenuDidRequestConnectByAddress() { connectByAddressCount += 1 }
+    func statusMenu(didRequestPairingWith address: String?) { pairingRequests.append(address) }
+    func statusMenu(didRequestDisconnect device: ADBDevice) { disconnects.append(device) }
+    func statusMenu(didRequestSwitchToWireless device: ADBDevice) { switches.append(device) }
+}
+
+// MARK: - Pengaturan device
+
+final class FakeSettingsOpener: DeviceSettingsOpening {
+    var result: Result<Void, ADBError> = .success(())
+    private(set) var serials: [String] = []
+    var log: CallLog?
+
+    func openDeveloperOptions(on serial: String, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        serials.append(serial)
+        log?.record("developerOptions")
+        completion(result)
+    }
+}
+
+// MARK: - Wi-Fi
+
+struct StubDiscoverySettings: WirelessDiscoveryProviding {
+    var wirelessDiscoveryEnabled: Bool
+}
+
+final class MutableDiscoverySettings: WirelessDiscoveryProviding {
+    var wirelessDiscoveryEnabled: Bool
+    init(_ enabled: Bool) { wirelessDiscoveryEnabled = enabled }
+}
+
+/// `discoverWireless` baru selesai saat tes memanggil `complete`.
+final class FakeWirelessDiscovery: WirelessDiscovering {
+    private(set) var pending: [(Result<[WirelessService], ADBError>) -> Void] = []
+
+    func discoverWireless(completion: @escaping (Result<[WirelessService], ADBError>) -> Void) {
+        pending.append(completion)
+    }
+
+    func complete(_ result: Result<[WirelessService], ADBError>) {
+        pending.removeFirst()(result)
+    }
+}
+
+final class FakeWirelessController: WirelessControlling {
+    var connectResults: [Result<Void, ADBError>] = []   // dipakai berurutan; kosong = sukses
+    var pairResult: Result<Void, ADBError> = .success(())
+    var disconnectResult: Result<Void, ADBError> = .success(())
+    var wifiResult: Result<String, ADBError> = .success("192.168.1.23")
+    var tcpipResult: Result<Void, ADBError> = .success(())
+    var log: CallLog?
+
+    private(set) var connectCalls: [String] = []
+    private(set) var pairCalls: [(address: String, code: String)] = []
+    private(set) var disconnectCalls: [String] = []
+    private(set) var wifiCalls: [String] = []
+    private(set) var tcpipCalls: [(serial: String, port: Int)] = []
+
+    func connect(to address: String, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        connectCalls.append(address)
+        log?.record("connect")
+        completion(connectResults.isEmpty ? .success(()) : connectResults.removeFirst())
+    }
+
+    func disconnect(serial: String, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        disconnectCalls.append(serial)
+        log?.record("disconnect")
+        completion(disconnectResult)
+    }
+
+    func pair(address: String, code: String, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        pairCalls.append((address, code))
+        log?.record("pair")
+        completion(pairResult)
+    }
+
+    func wifiAddress(of serial: String, completion: @escaping (Result<String, ADBError>) -> Void) {
+        wifiCalls.append(serial)
+        log?.record("wifiAddress")
+        completion(wifiResult)
+    }
+
+    func enableTCPIP(on serial: String, port: Int, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        tcpipCalls.append((serial, port))
+        log?.record("tcpip")
+        completion(tcpipResult)
+    }
+}
+
+@MainActor
+final class FakeWirelessSwitcher: WirelessSwitching {
+    var result: Result<String, ADBError> = .success("192.168.1.23:5555")
+    private(set) var serials: [String] = []
+    var log: CallLog?
+
+    func switchToWireless(serial: String, completion: @escaping (Result<String, ADBError>) -> Void) {
+        serials.append(serial)
+        log?.record("switch")
+        completion(result)
+    }
+}
+
+@MainActor
+final class FakeWirelessPrompter: WirelessPrompting {
+    var connectAnswer: String?
+    var pairAnswer: (address: String, code: String)?
+    private(set) var connectAsked = 0
+    private(set) var pairingPrefills: [String?] = []
+
+    func askConnectAddress() -> String? {
+        connectAsked += 1
+        return connectAnswer
+    }
+
+    func askPairing(prefilledAddress: String?) -> (address: String, code: String)? {
+        pairingPrefills.append(prefilledAddress)
+        return pairAnswer
+    }
+}
+
+/// Mencatat panggilan lewat `WirelessActionHandling`, untuk memeriksa penerusan dari `AppCoordinator`.
+@MainActor
+final class RecordingWirelessHandler: WirelessActionHandling {
+    private(set) var calls: [String] = []
+
+    func statusMenu(didRequestConnectTo address: String) { calls.append("connect:\(address)") }
+    func statusMenuDidRequestConnectByAddress() { calls.append("connectByAddress") }
+    func statusMenu(didRequestPairingWith address: String?) { calls.append("pair:\(address ?? "nil")") }
+    func statusMenu(didRequestDisconnect device: ADBDevice) { calls.append("disconnect:\(device.serial)") }
+    func statusMenu(didRequestSwitchToWireless device: ADBDevice) { calls.append("switch:\(device.serial)") }
+}
+
+/// `ProcessRunning` yang mengembalikan hasil berurutan (satu per pemanggilan) dan mencatat argumennya.
+final class SequencedProcessRunner: ProcessRunning {
+    private var results: [Result<ProcessOutput, ProcessError>]
+    private(set) var calls: [[String]] = []
+
+    init(_ results: [Result<ProcessOutput, ProcessError>]) { self.results = results }
+
+    func run(executable: String,
+             arguments: [String],
+             timeout: TimeInterval,
+             completion: @escaping (Result<ProcessOutput, ProcessError>) -> Void) {
+        calls.append(arguments)
+        let empty: Result<ProcessOutput, ProcessError> = .success(ProcessOutput(stdout: "", stderr: "", exitCode: 0))
+        completion(results.isEmpty ? empty : results.removeFirst())
+    }
 }
 
 // MARK: - Contoh data
