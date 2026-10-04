@@ -97,6 +97,7 @@ extension Translations {
         .menuWirelessPairItem: "Pairing dengan %@…",
         .menuConnectByAddress: "Hubungkan ke Alamat IP…",
         .menuPairDevice: "Pairing Perangkat…",
+        .menuPairWithQR: "Pairing dengan Kode QR…",
         .menuDisconnect: "Putuskan Koneksi",
         .menuSwitchToWiFi: "Pindah ke Wi-Fi",
 
@@ -111,6 +112,15 @@ extension Translations {
         .pairAddressPlaceholder: "Alamat IP dan port (192.168.1.5:41223)",
         .pairCodePlaceholder: "Kode pairing 6 digit",
         .pairPromptButton: "Pairing",
+
+        .qrPromptTitle: "Pairing dengan kode QR",
+        .qrPromptBody: "Di ponsel buka Opsi pengembang → Debugging nirkabel → Sambungkan perangkat dengan kode QR, "
+            + "lalu pindai kode ini. Ponsel dan Mac ini harus berada di jaringan Wi-Fi yang sama.",
+        .qrStatusWaiting: "Menunggu ponsel memindai kode…",
+        .qrStatusPairing: "Kode dipindai. Sedang pairing…",
+        .qrFailureTitle: "Gagal pairing dengan kode QR",
+        .errorQRTimedOut: "Tidak ada ponsel yang memindai kode tepat waktu. Pastikan ponsel dan Mac ini ada di "
+            + "jaringan Wi-Fi yang sama dan jaringan tidak memblokir mDNS, lalu coba lagi.",
 
         .pairSuccessTitle: "Pairing berhasil",
         .pairSuccessBody: "%@ sudah dipairing. Jika belum muncul di daftar, hubungkan lewat Tersedia lewat Wi-Fi.",

@@ -154,6 +154,32 @@ final class ADBServiceWirelessTests: XCTestCase {
                        .commandFailed("Failed: Wrong password or connection was dropped."))
     }
 
+    // MARK: pairWithQR (the password is app-generated, not 6 digits)
+
+    func testPairWithQRPassesTheAlphanumericPasswordAsTheCode() {
+        let text = "Successfully paired to 192.168.1.5:41223 [guid=adb-X-aBcDeF]\n"
+        let (service, runner) = makeService([ok(text)])
+        let address = "192.168.1.5:41223"
+        XCTAssertNil(errorOf { service.pairWithQR(address: address, password: "Zx81Qw0Lm2Ns", completion: $0) })
+        XCTAssertEqual(runner.calls, [["pair", "192.168.1.5:41223", "Zx81Qw0Lm2Ns"]])
+    }
+
+    func testPairWithQRRejectsABadAddressOrPasswordAndRunsNothing() {
+        let (service, runner) = makeService([])
+        XCTAssertEqual(errorOf { service.pairWithQR(address: "192.168.1.5", password: "Zx81Qw0Lm2Ns", completion: $0) },
+                       .invalidAddress)
+        XCTAssertEqual(errorOf { service.pairWithQR(address: "1.2.3.4:5", password: "-oops", completion: $0) },
+                       .invalidPairingCode)
+        XCTAssertTrue(runner.calls.isEmpty)
+    }
+
+    func testPairWithQRFailureIsReported() {
+        let text = "Enter pairing code: \nFailed: Wrong password or connection was dropped.\n"
+        let (service, _) = makeService([ok(text)])
+        XCTAssertEqual(errorOf { service.pairWithQR(address: "1.2.3.4:5", password: "Zx81Qw0Lm2Ns", completion: $0) },
+                       .commandFailed("Failed: Wrong password or connection was dropped."))
+    }
+
     // MARK: wifiAddress
 
     private func wifi(_ service: ADBService) -> Result<String, ADBError> {

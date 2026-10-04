@@ -279,7 +279,7 @@ final class StatusMenuBuilderTests: XCTestCase {
                                    "Available over Wi-Fi (2)",
                                    "Connect to R9CN4057BXJ (192.168.1.5:37899)",
                                    "Pair with R9CN4057BXJ (192.168.1.5:41223)…",
-                                   "", "Connect to IP Address…", "Pair Device…",
+                                   "", "Connect to IP Address…", "Pair Device…", "Pair with QR Code…",
                                    "", "Refresh", "Preferences…", "", "Quit ADB Monitor"])
     }
 
@@ -306,11 +306,13 @@ final class StatusMenuBuilderTests: XCTestCase {
         try click(try item("Pair with R9CN4057BXJ (192.168.1.5:41223)…", in: m))
         try click(try item("Connect to IP Address…", in: m))
         try click(try item("Pair Device…", in: m))
+        try click(try item("Pair with QR Code…", in: m))
         XCTAssertEqual(handler.connectAddresses, ["192.168.1.5:37899"])
         XCTAssertEqual(handler.pairingRequests.count, 2)
         XCTAssertEqual(handler.pairingRequests[0], "192.168.1.5:41223")
         XCTAssertNil(handler.pairingRequests[1] ?? nil, "pairing manual tanpa alamat terisi")
         XCTAssertEqual(handler.connectByAddressCount, 1)
+        XCTAssertEqual(handler.qrPairingRequestCount, 1)
     }
 
     func testNetworkDeviceOffersDisconnectOnly() throws {

@@ -18,6 +18,8 @@ enum ADBError: Error, Equatable {
     case invalidAddress
     /// The pairing code is not 6 digits.
     case invalidPairingCode
-    /// Keluaran error mentah dari `adb`; tidak diterjemahkan.
+    /// No phone scanned the pairing QR code before the wait ran out.
+    case qrPairingTimedOut
+    /// Raw error output from `adb`; not translated.
     case commandFailed(String)
 }

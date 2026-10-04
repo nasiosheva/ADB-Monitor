@@ -20,7 +20,9 @@ protocol WirelessControlling {
     func disconnect(serial: String, completion: @escaping (Result<Void, ADBError>) -> Void)
     /// `adb pair <host:port> <code>`; the pairing port is required.
     func pair(address: String, code: String, completion: @escaping (Result<Void, ADBError>) -> Void)
-    /// Alamat IPv4 Wi-Fi sebuah device yang tersambung (biasanya lewat USB).
+    /// `adb pair <host:port> <password>` for QR pairing; the password is app-generated, not 6 digits.
+    func pairWithQR(address: String, password: String, completion: @escaping (Result<Void, ADBError>) -> Void)
+    /// Wi-Fi IPv4 address of a connected device (usually over USB).
     func wifiAddress(of serial: String, completion: @escaping (Result<String, ADBError>) -> Void)
     /// `adb -s <serial> tcpip <port>`: moves adbd to TCP mode until the device is rebooted.
     func enableTCPIP(on serial: String, port: Int, completion: @escaping (Result<Void, ADBError>) -> Void)
@@ -74,7 +76,24 @@ extension ADBService: WirelessDiscovering, WirelessControlling {
             completion(.failure(.invalidPairingCode))
             return
         }
-        execute(["pair", normalized, code.trimmed], timeout: Self.pairTimeout) { result in
+        runPair(address: normalized, secret: code.trimmed, completion: completion)
+    }
+
+    func pairWithQR(address: String, password: String, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        guard let normalized = WirelessAddress.normalized(address, requirePort: true) else {
+            completion(.failure(.invalidAddress))
+            return
+        }
+        guard WirelessAddress.isValidQRPassword(password) else {
+            completion(.failure(.invalidPairingCode))
+            return
+        }
+        runPair(address: normalized, secret: password, completion: completion)
+    }
+
+    private func runPair(address: String, secret: String, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        // The secret is passed as an argument: `adb pair` without one prompts on stdin.
+        execute(["pair", address, secret], timeout: Self.pairTimeout) { result in
             completion(result.flatMap(Self.verifyPaired))
         }
     }

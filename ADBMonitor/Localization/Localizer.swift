@@ -45,7 +45,8 @@ extension Localizing {
         case .noWiFiAddress: return text(.errorNoWiFiAddress)
         case .invalidAddress: return text(.errorInvalidAddress)
         case .invalidPairingCode: return text(.errorInvalidPairingCode)
-        case .commandFailed(let output): return output  // keluaran mentah dari adb, tidak diterjemahkan
+        case .qrPairingTimedOut: return text(.errorQRTimedOut)
+        case .commandFailed(let output): return output  // raw adb output, not translated
         }
     }
 }

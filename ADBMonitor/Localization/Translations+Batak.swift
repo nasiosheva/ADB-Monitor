@@ -100,6 +100,7 @@ extension Translations {
         .menuWirelessPairItem: "Pairing dohot %@…",
         .menuConnectByAddress: "Sambung tu Alamat IP…",
         .menuPairDevice: "Pairing Alat…",
+        .menuPairWithQR: "Pairing dohot Kode QR…",
         .menuDisconnect: "Putus Sambungan",
         .menuSwitchToWiFi: "Pindah tu Wi-Fi",
 
@@ -114,6 +115,15 @@ extension Translations {
         .pairAddressPlaceholder: "Alamat IP dohot port (192.168.1.5:41223)",
         .pairCodePlaceholder: "Kode pairing 6 angka",
         .pairPromptButton: "Pairing",
+
+        .qrPromptTitle: "Pairing dohot kode QR",
+        .qrPromptBody: "Di HP i buka Opsi pengembang → Wireless debugging → Pair device with QR code, laos pindai "
+            + "kode on. HP i dohot Mac on masa di jaringan Wi-Fi na sama.",
+        .qrStatusWaiting: "Manontong HP mamindai kode i…",
+        .qrStatusPairing: "Kode nunga dipindai. Pairing…",
+        .qrFailureTitle: "Ndang boi pairing dohot kode QR",
+        .errorQRTimedOut: "Ndang adong HP na mamindai kode i satorop waktu. Pastikan HP i dohot Mac on di jaringan "
+            + "Wi-Fi na sama jala jaringan i ndang manghalangi mDNS, laos cobai muse.",
 
         .pairSuccessTitle: "Pairing marhasil",
         .pairSuccessBody: "%@ nunga dipairing. Molo ndang tarida di daftar, sambung sian Na dapot lewat Wi-Fi.",

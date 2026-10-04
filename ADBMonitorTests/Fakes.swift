@@ -182,12 +182,14 @@ final class RecordingMenuHandler: StatusMenuActionHandling {
     private(set) var connectAddresses: [String] = []
     private(set) var connectByAddressCount = 0
     private(set) var pairingRequests: [String?] = []
+    private(set) var qrPairingRequestCount = 0
     private(set) var disconnects: [ADBDevice] = []
     private(set) var switches: [ADBDevice] = []
 
     func statusMenu(didRequestConnectTo address: String) { connectAddresses.append(address) }
     func statusMenuDidRequestConnectByAddress() { connectByAddressCount += 1 }
     func statusMenu(didRequestPairingWith address: String?) { pairingRequests.append(address) }
+    func statusMenuDidRequestPairWithQR() { qrPairingRequestCount += 1 }
     func statusMenu(didRequestDisconnect device: ADBDevice) { disconnects.append(device) }
     func statusMenu(didRequestSwitchToWireless device: ADBDevice) { switches.append(device) }
 }
@@ -256,6 +258,14 @@ final class FakeWirelessController: WirelessControlling {
         completion(disconnectResult)
     }
 
+    private(set) var qrPairCalls: [(address: String, password: String)] = []
+
+    func pairWithQR(address: String, password: String, completion: @escaping (Result<Void, ADBError>) -> Void) {
+        qrPairCalls.append((address, password))
+        log?.record("pairWithQR")
+        completion(pairResult)
+    }
+
     func pair(address: String, code: String, completion: @escaping (Result<Void, ADBError>) -> Void) {
         pairCalls.append((address, code))
         log?.record("pair")
@@ -314,6 +324,7 @@ final class RecordingWirelessHandler: WirelessActionHandling {
     func statusMenu(didRequestConnectTo address: String) { calls.append("connect:\(address)") }
     func statusMenuDidRequestConnectByAddress() { calls.append("connectByAddress") }
     func statusMenu(didRequestPairingWith address: String?) { calls.append("pair:\(address ?? "nil")") }
+    func statusMenuDidRequestPairWithQR() { calls.append("pairWithQR") }
     func statusMenu(didRequestDisconnect device: ADBDevice) { calls.append("disconnect:\(device.serial)") }
     func statusMenu(didRequestSwitchToWireless device: ADBDevice) { calls.append("switch:\(device.serial)") }
 }
@@ -344,5 +355,58 @@ enum Sample {
                        usbPath: String? = "1-1") -> ADBDevice {
         ADBDevice(serial: serial, state: state, model: model, product: "sargo", deviceName: "sargo",
                   transportID: "2", usbPath: usbPath)
+    }
+}
+
+/// Holds the callbacks of `start` so a test decides when (and how) the QR wait ends.
+@MainActor
+final class FakeQRPairer: WirelessQRPairing {
+    private(set) var started: [PairingQRCredentials] = []
+    private(set) var cancelCount = 0
+    private var onPairing: (() -> Void)?
+    private var completion: ((Result<String, ADBError>) -> Void)?
+
+    func start(credentials: PairingQRCredentials,
+               onPairing: @escaping () -> Void,
+               completion: @escaping (Result<String, ADBError>) -> Void) {
+        started.append(credentials)
+        self.onPairing = onPairing
+        self.completion = completion
+    }
+
+    func cancel() { cancelCount += 1 }
+
+    func simulatePhoneFound() { onPairing?() }
+    func finish(_ result: Result<String, ADBError>) { completion?(result) }
+}
+
+@MainActor
+final class FakePairingQRWindow: PairingQRPresenting {
+    private(set) var shownPayloads: [String] = []
+    private(set) var pairingInProgressCount = 0
+    private(set) var bringToFrontCount = 0
+    private(set) var dismissCount = 0
+    var log: CallLog?
+    private var onCancel: (() -> Void)?
+
+    func show(payload: String, onCancel: @escaping () -> Void) {
+        shownPayloads.append(payload)
+        self.onCancel = onCancel
+    }
+
+    func bringToFront() { bringToFrontCount += 1 }
+    func showPairingInProgress() { pairingInProgressCount += 1 }
+
+    func dismiss() {
+        dismissCount += 1
+        log?.record("dismiss")
+        onCancel = nil
+    }
+
+    /// The user closed the window or pressed Cancel.
+    func simulateUserCancel() {
+        let cancel = onCancel
+        onCancel = nil
+        cancel?()
     }
 }

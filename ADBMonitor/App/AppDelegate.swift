@@ -59,6 +59,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let wireless = WirelessCoordinator(controller: service,
                                            switcher: WirelessSwitcher(controller: service, scheduler: scheduler),
                                            prompts: AppKitWirelessPrompter(localizer: localizer),
+                                           qrPairer: WirelessQRPairer(discovery: service, controller: service,
+                                                                      scheduler: scheduler),
+                                           qrWindow: AppKitPairingQRPresenter(localizer: localizer),
                                            alerts: alerts,
                                            monitor: monitor,
                                            localizer: localizer)

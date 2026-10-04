@@ -14,6 +14,8 @@ final class WirelessCoordinatorTests: XCTestCase {
     private var controller: FakeWirelessController!
     private var switcher: FakeWirelessSwitcher!
     private var prompts: FakeWirelessPrompter!
+    private var qrPairer: FakeQRPairer!
+    private var qrWindow: FakePairingQRWindow!
     private var alerts: FakeAlerts!
     private var monitor: FakeMonitor!
     private var log: CallLog!
@@ -35,7 +37,11 @@ final class WirelessCoordinatorTests: XCTestCase {
         monitor.log = log
         let localizer = Localizer(provider: StubLanguage(languagePreference: .explicit(.english)),
                                   notificationCenter: NotificationCenter())
+        qrPairer = FakeQRPairer()
+        qrWindow = FakePairingQRWindow()
+        qrWindow.log = log
         coordinator = WirelessCoordinator(controller: controller, switcher: switcher, prompts: prompts,
+                                          qrPairer: qrPairer, qrWindow: qrWindow,
                                           alerts: alerts, monitor: monitor, localizer: localizer)
     }
 
@@ -94,6 +100,62 @@ final class WirelessCoordinatorTests: XCTestCase {
         XCTAssertTrue(controller.connectCalls.isEmpty)
         XCTAssertEqual(alerts.errors.first?.title, "Could not connect to bad host")
         XCTAssertEqual(alerts.errors.first?.message, english(.errorInvalidAddress))
+    }
+
+    // MARK: Pairing with a QR code
+
+    func testQRPairingShowsTheWindowAndStartsWaitingWithTheSameCredentials() throws {
+        coordinator.statusMenuDidRequestPairWithQR()
+        let credentials = try XCTUnwrap(qrPairer.started.first)
+        XCTAssertEqual(qrWindow.shownPayloads, [credentials.payload])
+    }
+
+    func testAskingAgainWhileWaitingOnlyBringsTheWindowToTheFront() {
+        coordinator.statusMenuDidRequestPairWithQR()
+        coordinator.statusMenuDidRequestPairWithQR()
+        XCTAssertEqual(qrPairer.started.count, 1)
+        XCTAssertEqual(qrWindow.shownPayloads.count, 1)
+        XCTAssertEqual(qrWindow.bringToFrontCount, 1)
+    }
+
+    func testPhoneFoundSwitchesTheWindowToPairingInProgress() {
+        coordinator.statusMenuDidRequestPairWithQR()
+        qrPairer.simulatePhoneFound()
+        XCTAssertEqual(qrWindow.pairingInProgressCount, 1)
+    }
+
+    func testQRPairingSuccessClosesTheWindowRefreshesAndShowsAnInfoDialog() {
+        coordinator.statusMenuDidRequestPairWithQR()
+        qrPairer.finish(.success("192.168.1.5:41223"))
+        XCTAssertEqual(log.entries, ["dismiss", "refresh", "info"], "window closes before the modal dialog")
+        XCTAssertEqual(alerts.infos.first?.title, english(.pairSuccessTitle))
+        XCTAssertEqual(alerts.infos.first?.message, "192.168.1.5:41223 is paired. "
+            + "If it does not appear in the list, connect to it under Available over Wi-Fi.")
+    }
+
+    func testQRPairingTimeoutShowsTheLocalizedMessage() {
+        coordinator.statusMenuDidRequestPairWithQR()
+        qrPairer.finish(.failure(.qrPairingTimedOut))
+        XCTAssertEqual(qrWindow.dismissCount, 1)
+        XCTAssertEqual(alerts.errors.first?.title, english(.qrFailureTitle))
+        XCTAssertEqual(alerts.errors.first?.message, english(.errorQRTimedOut))
+    }
+
+    func testQRPairingAdbFailureShowsTheRawAdbOutput() {
+        coordinator.statusMenuDidRequestPairWithQR()
+        qrPairer.finish(.failure(.commandFailed("Failed: Wrong password or connection was dropped.")))
+        XCTAssertEqual(alerts.errors.first?.message, "Failed: Wrong password or connection was dropped.")
+    }
+
+    func testCancellingTheWindowStopsWaitingAndAllowsANewSession() {
+        coordinator.statusMenuDidRequestPairWithQR()
+        qrWindow.simulateUserCancel()
+        XCTAssertEqual(qrPairer.cancelCount, 1)
+        XCTAssertTrue(alerts.errors.isEmpty && alerts.infos.isEmpty)
+
+        coordinator.statusMenuDidRequestPairWithQR()
+        XCTAssertEqual(qrPairer.started.count, 2)
+        XCTAssertNotEqual(qrPairer.started[0], qrPairer.started[1], "every session gets fresh credentials")
     }
 
     // MARK: Pairing

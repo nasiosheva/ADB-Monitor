@@ -107,6 +107,10 @@ final class AppCoordinator: StatusMenuActionHandling {
         wireless.statusMenu(didRequestPairingWith: address)
     }
 
+    func statusMenuDidRequestPairWithQR() {
+        wireless.statusMenuDidRequestPairWithQR()
+    }
+
     func statusMenu(didRequestDisconnect device: ADBDevice) {
         wireless.statusMenu(didRequestDisconnect: device)
     }

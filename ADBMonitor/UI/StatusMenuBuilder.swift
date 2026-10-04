@@ -16,6 +16,8 @@ protocol WirelessActionHandling: AnyObject {
     func statusMenuDidRequestConnectByAddress()
     /// Pairing; `address` is set when it comes from a discovered pairing service, `nil` for manual input.
     func statusMenu(didRequestPairingWith address: String?)
+    /// Shows a QR code for the phone to scan, then pairs with the phone that does.
+    func statusMenuDidRequestPairWithQR()
     func statusMenu(didRequestDisconnect device: ADBDevice)
     func statusMenu(didRequestSwitchToWireless device: ADBDevice)
 }
@@ -119,6 +121,7 @@ final class StatusMenuBuilder: NSObject {
             .separator(),
             .command(l10n.text(.menuConnectByAddress), action: #selector(connectByAddressSelected), target: self),
             .command(l10n.text(.menuPairDevice), action: #selector(pairDeviceSelected), target: self),
+            .command(l10n.text(.menuPairWithQR), action: #selector(pairWithQRSelected), target: self),
         ]
     }
 
@@ -245,6 +248,7 @@ final class StatusMenuBuilder: NSObject {
 
     @objc private func connectByAddressSelected() { handler?.statusMenuDidRequestConnectByAddress() }
     @objc private func pairDeviceSelected() { handler?.statusMenu(didRequestPairingWith: nil) }
+    @objc private func pairWithQRSelected() { handler?.statusMenuDidRequestPairWithQR() }
 
     @objc private func disconnectSelected(_ sender: NSMenuItem) {
         guard let device = sender.representedObject as? ADBDevice else { return }

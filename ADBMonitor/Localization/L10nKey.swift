@@ -107,6 +107,7 @@ enum L10nKey: String, CaseIterable {
     case menuWirelessPairItem
     case menuConnectByAddress
     case menuPairDevice
+    case menuPairWithQR
     case menuDisconnect
     case menuSwitchToWiFi
 
@@ -120,6 +121,11 @@ enum L10nKey: String, CaseIterable {
     case pairAddressPlaceholder
     case pairCodePlaceholder
     case pairPromptButton
+    case qrPromptTitle
+    case qrPromptBody
+    case qrStatusWaiting
+    case qrStatusPairing
+    case qrFailureTitle
 
     // Wi-Fi: results
     case pairSuccessTitle
@@ -132,6 +138,7 @@ enum L10nKey: String, CaseIterable {
     case errorInvalidAddress
     case errorInvalidPairingCode
     case errorNoRouteHint
+    case errorQRTimedOut
 
     // Wi-Fi: Preferences
     case prefsWireless

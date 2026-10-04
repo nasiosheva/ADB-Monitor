@@ -14,19 +14,26 @@ final class WirelessCoordinator: WirelessActionHandling {
     private let controller: WirelessControlling
     private let switcher: WirelessSwitching
     private let prompts: WirelessPrompting
+    private let qrPairer: WirelessQRPairing
+    private let qrWindow: PairingQRPresenting
     private let alerts: AlertPresenting
     private let monitor: DeviceMonitoring
     private let l10n: Localizing
+    private var isPairingWithQR = false
 
     init(controller: WirelessControlling,
          switcher: WirelessSwitching,
          prompts: WirelessPrompting,
+         qrPairer: WirelessQRPairing,
+         qrWindow: PairingQRPresenting,
          alerts: AlertPresenting,
          monitor: DeviceMonitoring,
          localizer: Localizing) {
         self.controller = controller
         self.switcher = switcher
         self.prompts = prompts
+        self.qrPairer = qrPairer
+        self.qrWindow = qrWindow
         self.alerts = alerts
         self.monitor = monitor
         self.l10n = localizer
@@ -69,6 +76,36 @@ final class WirelessCoordinator: WirelessActionHandling {
                 self.showError(.wirelessPairFailureTitle, subject: pairingAddress, error: error)
             }
         }
+    }
+
+    func statusMenuDidRequestPairWithQR() {
+        // A second request while the window is open just brings it to the front.
+        guard !isPairingWithQR else {
+            qrWindow.bringToFront()
+            return
+        }
+        isPairingWithQR = true
+        let credentials = PairingQRCredentials.random()
+
+        qrWindow.show(payload: credentials.payload) { [weak self] in
+            self?.qrPairer.cancel()
+            self?.isPairingWithQR = false
+        }
+        qrPairer.start(credentials: credentials, onPairing: { [weak self] in
+            self?.qrWindow.showPairingInProgress()
+        }, completion: { [weak self] result in
+            guard let self = self else { return }
+            self.isPairingWithQR = false
+            self.qrWindow.dismiss()
+            self.monitor.refresh()  // after pairing, adb usually connects by itself through mDNS
+            switch result {
+            case .success(let address):
+                self.alerts.showInfo(title: self.l10n.text(.pairSuccessTitle),
+                                     message: self.l10n.text(.pairSuccessBody, address))
+            case .failure(let error):
+                self.alerts.showError(title: self.l10n.text(.qrFailureTitle), message: self.message(for: error))
+            }
+        })
     }
 
     func statusMenu(didRequestDisconnect device: ADBDevice) {

@@ -96,6 +96,7 @@ extension Translations {
         .menuWirelessPairItem: "與 %@ 配對…",
         .menuConnectByAddress: "連線至 IP 位址…",
         .menuPairDevice: "配對裝置…",
+        .menuPairWithQR: "使用 QR 碼配對…",
         .menuDisconnect: "中斷連線",
         .menuSwitchToWiFi: "切換為 Wi-Fi",
 
@@ -108,6 +109,13 @@ extension Translations {
         .pairAddressPlaceholder: "IP 位址與連接埠（192.168.1.5:41223）",
         .pairCodePlaceholder: "6 位數配對碼",
         .pairPromptButton: "配對",
+
+        .qrPromptTitle: "使用 QR 碼配對",
+        .qrPromptBody: "請在手機上開啟「開發人員選項」→「無線偵錯」→「使用 QR 碼配對裝置」，然後掃描此代碼。手機與這部 Mac 必須在同一個 Wi-Fi 網路。",
+        .qrStatusWaiting: "正在等待手機掃描代碼…",
+        .qrStatusPairing: "已掃描代碼，正在配對…",
+        .qrFailureTitle: "無法使用 QR 碼配對",
+        .errorQRTimedOut: "沒有手機在時間內掃描代碼。請確認手機與這部 Mac 在同一個 Wi-Fi 網路，且網路沒有封鎖 mDNS，然後再試一次。",
 
         .pairSuccessTitle: "配對成功",
         .pairSuccessBody: "%@ 已配對。若未出現在清單中，請在「可透過 Wi-Fi 連線」中連線。",

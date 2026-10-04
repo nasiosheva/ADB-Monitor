@@ -97,6 +97,7 @@ extension Translations {
         .menuWirelessPairItem: "Pair with %@…",
         .menuConnectByAddress: "Connect to IP Address…",
         .menuPairDevice: "Pair Device…",
+        .menuPairWithQR: "Pair with QR Code…",
         .menuDisconnect: "Disconnect",
         .menuSwitchToWiFi: "Switch to Wi-Fi",
 
@@ -111,6 +112,15 @@ extension Translations {
         .pairAddressPlaceholder: "IP address and port (192.168.1.5:41223)",
         .pairCodePlaceholder: "6-digit pairing code",
         .pairPromptButton: "Pair",
+
+        .qrPromptTitle: "Pair with QR code",
+        .qrPromptBody: "On the phone open Developer options → Wireless debugging → Pair device with QR code, then "
+            + "scan this code. The phone and this Mac must be on the same Wi-Fi network.",
+        .qrStatusWaiting: "Waiting for the phone to scan the code…",
+        .qrStatusPairing: "Code scanned. Pairing…",
+        .qrFailureTitle: "Could not pair with QR code",
+        .errorQRTimedOut: "No phone scanned the code in time. Make sure the phone and this Mac are on the same Wi-Fi "
+            + "network and that the network does not block mDNS, then try again.",
 
         .pairSuccessTitle: "Paired",
         .pairSuccessBody: "%@ is paired. If it does not appear in the list, connect to it under Available over Wi-Fi.",
