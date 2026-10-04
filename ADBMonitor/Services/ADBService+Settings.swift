@@ -7,9 +7,9 @@
 
 import Foundation
 
-/// Membuka layar pengaturan di device. Dipisah dari `ADBServicing` agar protokol utama tetap kecil.
+/// Opens a settings screen on the device. Kept apart from `ADBServicing` so the main protocol stays small.
 protocol DeviceSettingsOpening {
-    /// Membuka layar Developer options di device yang dipilih.
+    /// Opens the Developer options screen on the selected device.
     func openDeveloperOptions(on serial: String, completion: @escaping (Result<Void, ADBError>) -> Void)
 }
 
@@ -25,8 +25,8 @@ extension ADBService: DeviceSettingsOpening {
         }
     }
 
-    /// `am start` selalu exit 0, bahkan jika tidak ada activity yang cocok; kegagalannya hanya berupa baris
-    /// `Error: Activity not started, unable to resolve Intent …` (di stderr pada Android 12).
+    /// `am start` always exits 0, even when no activity matches; the failure only shows up as the line
+    /// `Error: Activity not started, unable to resolve Intent …` (on stderr on Android 12).
     private static func verifyStarted(_ output: ProcessOutput) -> Result<Void, ADBError> {
         let lines = (output.stdout + "\n" + output.stderr)
             .split(whereSeparator: \.isNewline)

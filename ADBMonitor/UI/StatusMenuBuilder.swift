@@ -7,20 +7,20 @@
 
 import AppKit
 
-/// Aksi koneksi ADB lewat Wi-Fi yang bisa diminta pengguna dari dropdown menu.
+/// ADB Wi-Fi connection actions the user can request from the dropdown menu.
 @MainActor
 protocol WirelessActionHandling: AnyObject {
-    /// Menyambungkan ke layanan yang ditemukan lewat mDNS (`host:port`).
+    /// Connects to a service found through mDNS (`host:port`).
     func statusMenu(didRequestConnectTo address: String)
-    /// Meminta pengguna mengetik alamat, lalu menyambungkan.
+    /// Asks the user to type an address, then connects.
     func statusMenuDidRequestConnectByAddress()
-    /// Pairing; `address` terisi bila berasal dari layanan pairing yang ditemukan, `nil` untuk input manual.
+    /// Pairing; `address` is set when it comes from a discovered pairing service, `nil` for manual input.
     func statusMenu(didRequestPairingWith address: String?)
     func statusMenu(didRequestDisconnect device: ADBDevice)
     func statusMenu(didRequestSwitchToWireless device: ADBDevice)
 }
 
-/// Aksi yang bisa diminta pengguna dari dropdown menu.
+/// Actions the user can request from the dropdown menu.
 @MainActor
 protocol StatusMenuActionHandling: WirelessActionHandling {
     func statusMenuDidRequestRefresh()
@@ -30,7 +30,7 @@ protocol StatusMenuActionHandling: WirelessActionHandling {
     func statusMenu(didRequestOpenDeveloperOptionsOn device: ADBDevice)
 }
 
-/// Mengisi `NSMenu` sesuai `ADBStatus` dan meneruskan klik ke `StatusMenuActionHandling`.
+/// Fills an `NSMenu` according to `ADBStatus` and forwards clicks to `StatusMenuActionHandling`.
 @MainActor
 final class StatusMenuBuilder: NSObject {
 
@@ -48,8 +48,8 @@ final class StatusMenuBuilder: NSObject {
         super.init()
     }
 
-    /// Mengisi ulang menu yang sama (bukan membuat baru) agar menu yang sedang terbuka tidak tertutup.
-    /// `wireless` berisi layanan Wi-Fi yang ditemukan tetapi belum tersambung.
+    /// Refills the same menu (instead of creating a new one) so a menu that is open does not close.
+    /// `wireless` holds Wi-Fi services that were found but are not connected yet.
     func populate(_ menu: NSMenu, for status: ADBStatus?, wireless: [WirelessService] = []) {
         menu.removeAllItems()
         let items = statusItems(for: status, wireless: wireless) + [.separator()] + commandItems()
@@ -113,7 +113,7 @@ final class StatusMenuBuilder: NSObject {
         }
     }
 
-    /// Selalu tampil (selama ADB berjalan): koneksi manual tetap berguna di jaringan yang memblokir mDNS.
+    /// Always shown (while ADB works): manual connection stays useful on networks that block mDNS.
     private func wirelessCommandItems() -> [NSMenuItem] {
         [
             .separator(),
@@ -166,7 +166,7 @@ final class StatusMenuBuilder: NSObject {
                  representedObject: device.serial)
     }
 
-    /// Hanya untuk device yang tersambung normal; perintahnya dikirim lewat shell Android.
+    /// Only for devices that are connected normally; the command is sent through the Android shell.
     private func developerOptionsItem(for device: ADBDevice) -> NSMenuItem {
         let item = NSMenuItem.command(l10n.text(.menuOpenDeveloperOptions),
                                       action: #selector(developerOptionsSelected(_:)),
@@ -176,7 +176,7 @@ final class StatusMenuBuilder: NSObject {
         return item
     }
 
-    /// Device Wi-Fi bisa diputus; device USB yang siap bisa dipindahkan ke Wi-Fi.
+    /// A Wi-Fi device can be disconnected; a ready USB device can be switched to Wi-Fi.
     private func wirelessDeviceItems(for device: ADBDevice) -> [NSMenuItem] {
         switch device.connection {
         case .network:

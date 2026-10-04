@@ -7,15 +7,15 @@
 
 import Foundation
 
-/// Validasi input pengguna untuk koneksi ADB lewat Wi-Fi.
+/// Validation of user input for ADB connections over Wi-Fi.
 enum WirelessAddress {
 
     static let defaultPort = 5555
 
-    /// Mengubah input pengguna menjadi `host:port`, atau `nil` jika tidak valid.
+    /// Turns user input into `host:port`, or `nil` if it is not valid.
     ///
-    /// - Parameter requirePort: `true` untuk pairing, yang tidak punya port bawaan.
-    /// Host hanya boleh berisi huruf, angka, titik, dan tanda hubung (IPv4 atau nama host); IPv6 belum didukung.
+    /// - Parameter requirePort: `true` for pairing, which has no default port.
+    /// The host may only contain letters, digits, dots, and hyphens (IPv4 or hostname); IPv6 is not supported.
     static func normalized(_ input: String, requirePort: Bool = false) -> String? {
         let trimmed = input.trimmed
         guard !trimmed.isEmpty else { return nil }
@@ -30,7 +30,7 @@ enum WirelessAddress {
         return requirePort ? nil : "\(host):\(defaultPort)"
     }
 
-    /// Kode pairing ADB selalu 6 digit.
+    /// ADB pairing codes are always 6 digits.
     static func isValidPairingCode(_ code: String) -> Bool {
         let trimmed = code.trimmed
         return trimmed.count == 6 && trimmed.allSatisfy { $0.isASCII && $0.isNumber }

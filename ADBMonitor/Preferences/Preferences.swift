@@ -7,10 +7,10 @@
 
 import Foundation
 
-// Protokol dipecah per kebutuhan (ISP): tiap konsumen hanya bergantung pada nilai yang ia pakai.
+// Protocols are split by need (ISP): each consumer only depends on the values it uses.
 
 protocol ADBPathProviding {
-    /// Path ADB kustom; `nil` berarti deteksi otomatis.
+    /// Custom ADB path; `nil` means auto-detect.
     var adbPath: String? { get }
 }
 
@@ -23,13 +23,13 @@ protocol LanguageProviding {
 }
 
 protocol WirelessDiscoveryProviding {
-    /// Apakah device di jaringan Wi-Fi dicari lewat mDNS pada setiap polling. Bawaan: aktif.
+    /// Whether devices on the Wi-Fi network are looked up through mDNS on every poll. Default: on.
     var wirelessDiscoveryEnabled: Bool { get }
 }
 
 protocol PreferencesStoring: ADBPathProviding, RefreshIntervalProviding, LanguageProviding,
                              WirelessDiscoveryProviding {
-    /// Menyimpan pengaturan lalu memposting `.preferencesDidChange`.
+    /// Saves the settings, then posts `.preferencesDidChange`.
     func save(adbPath: String?, refreshInterval: TimeInterval, language: LanguagePreference,
               wirelessDiscovery: Bool)
 }

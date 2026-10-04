@@ -9,19 +9,19 @@ import Foundation
 
 @MainActor
 protocol WirelessSwitching: AnyObject {
-    /// Memindahkan device yang tersambung lewat USB ke Wi-Fi. Hasil sukses berisi alamat `ip:port` yang tersambung.
+    /// Moves a device connected over USB to Wi-Fi. On success the result holds the connected `ip:port` address.
     func switchToWireless(serial: String, completion: @escaping (Result<String, ADBError>) -> Void)
 }
 
-/// Alur beberapa langkah: cari IP Wi-Fi device, `adb tcpip`, lalu `adb connect` dengan percobaan ulang.
+/// Multi-step flow: find the device's Wi-Fi IP, `adb tcpip`, then `adb connect` with retries.
 ///
-/// `adbd` perlu waktu untuk restart dalam mode TCP, jadi setiap percobaan connect didahului jeda
-/// (lewat `Scheduling`, sehingga bisa diuji tanpa menunggu sungguhan).
+/// `adbd` needs time to restart in TCP mode, so each connect attempt is preceded by a delay
+/// (through `Scheduling`, so it can be tested without really waiting).
 ///
-/// Closure di sini memegang `self` dengan kuat, sengaja: alur yang sedang berjalan harus selesai dan
-/// memanggil `completion` walaupun pemiliknya sudah melepas switcher (sebelumnya alur bisa mati diam-diam).
-/// Tidak ada siklus retain karena switcher tidak menyimpan closure apa pun; seluruh rantai berakhir
-/// saat alurnya selesai.
+/// The closures here hold `self` strongly on purpose: a running flow must finish and call
+/// `completion` even if its owner has released the switcher (the flow used to die silently before).
+/// There is no retain cycle because the switcher stores no closure; the whole chain ends
+/// when the flow finishes.
 @MainActor
 final class WirelessSwitcher: WirelessSwitching {
 

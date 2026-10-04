@@ -32,10 +32,10 @@ final class WirelessSwitcherTests: XCTestCase {
         switcher.switchToWireless(serial: serial) { [unowned self] in results.append($0) }
     }
 
-    /// Menjalankan jadwal berikutnya yang tertunda (mensimulasikan berlalunya jeda).
+    /// Runs the next pending scheduled action (simulates the delay passing).
     private func fireNext() {
         guard let next = scheduler.scheduled.first(where: { !$0.task.isCancelled }) else { return }
-        next.task.cancel()   // tandai terpakai agar `fireNext` berikutnya mengambil jadwal yang baru
+        next.task.cancel()   // mark it as used so the next `fireNext` picks up the new schedule
         next.action()
     }
 
@@ -100,8 +100,8 @@ final class WirelessSwitcherTests: XCTestCase {
         XCTAssertEqual(results, [.success("192.168.1.23:5565")])
     }
 
-    /// Regresi dari uji ponsel nyata: alur sempat mati diam-diam bila switcher dilepas pemiliknya
-    /// sebelum langkah asynchronous selesai, sehingga `completion` tidak pernah dipanggil.
+    /// Regression from the real phone test: the flow used to die silently if the owner released the switcher
+    /// before the asynchronous steps finished, so `completion` was never called.
     func testFlowStillCompletesWhenTheOwnerReleasesTheSwitcher() {
         weak var weakSwitcher: WirelessSwitcher?
         autoreleasepool {
@@ -118,8 +118,8 @@ final class WirelessSwitcherTests: XCTestCase {
     func testSwitcherIsReleasedOnceTheFlowEnds() {
         weak var weakSwitcher: WirelessSwitcher?
         autoreleasepool {
-            // Scheduler lokal: `FakeScheduler` menyimpan closure terjadwal selamanya, tidak seperti `Timer`
-            // yang melepasnya setelah berjalan, jadi ia ikut dilepas agar yang diuji hanya switcher-nya.
+            // Local scheduler: `FakeScheduler` keeps scheduled closures forever, unlike `Timer`,
+            // which releases them after running, so it is released too and only the switcher is under test.
             let localScheduler = FakeScheduler()
             let temporary = WirelessSwitcher(controller: controller, scheduler: localScheduler)
             weakSwitcher = temporary

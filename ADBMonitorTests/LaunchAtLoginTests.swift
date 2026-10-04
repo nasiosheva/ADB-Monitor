@@ -8,7 +8,7 @@
 import XCTest
 @testable import ADBMonitor
 
-/// Sengaja tidak memanggil `register()` sungguhan: itu akan menambah login item yang menunjuk ke folder build.
+/// Deliberately does not call a real `register()`: that would add a login item pointing at the build folder.
 final class LaunchAtLoginTests: XCTestCase {
 
     func testStatusIsOnMapping() {

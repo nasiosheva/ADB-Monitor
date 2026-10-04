@@ -32,7 +32,7 @@ final class ADBServiceTests: XCTestCase {
         return result ?? .failure(.commandFailed("completion tidak dipanggil"))
     }
 
-    /// `Result<Void, _>` tidak bisa `Equatable`, jadi dikembalikan sebagai error-nya saja (`nil` = sukses).
+    /// `Result<Void, _>` cannot be `Equatable`, so only its error is returned (`nil` = success).
     private func power(_ service: ADBService, _ action: PowerAction) -> ADBError? {
         var result: Result<Void, ADBError>?
         service.perform(action, on: "SER", completion: { result = $0 })

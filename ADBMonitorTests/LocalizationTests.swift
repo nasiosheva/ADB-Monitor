@@ -8,7 +8,7 @@
 import XCTest
 @testable import ADBMonitor
 
-/// Kelengkapan tabel tidak dijaga compiler (kamus Swift), jadi diperiksa di sini.
+/// The compiler does not guarantee table completeness (Swift dictionaries), so it is checked here.
 final class TranslationTableTests: XCTestCase {
 
     private func placeholders(_ text: String) -> [String] {
@@ -49,7 +49,7 @@ final class TranslationTableTests: XCTestCase {
         for language in AppLanguage.allCases where language != .english {
             for key in L10nKey.allCases {
                 let english = Translations.english[key] ?? ""
-                // Hanya kalimat (mengandung spasi); contoh teknis seperti "192.168.1.5:5555" sama di semua bahasa.
+                // Only sentences (with spaces); examples like "192.168.1.5:5555" are the same in every language.
                 guard english.count > 12, english.contains(" "), !english.contains("brew") else { continue }
                 XCTAssertNotEqual(Translations.table(for: language)[key], english,
                                   "\(language.rawValue).\(key) masih berbahasa Inggris")

@@ -39,7 +39,7 @@ final class WirelessCoordinatorTests: XCTestCase {
                                           alerts: alerts, monitor: monitor, localizer: localizer)
     }
 
-    // MARK: Connect dari hasil penemuan
+    // MARK: Connect from a discovered service
 
     func testConnectToDiscoveredServiceConnectsAndRefreshes() {
         coordinator.statusMenu(didRequestConnectTo: "192.168.1.5:37899")
@@ -71,7 +71,7 @@ final class WirelessCoordinatorTests: XCTestCase {
         XCTAssertEqual(alerts.errors.first?.message, refused)
     }
 
-    // MARK: Connect manual
+    // MARK: Manual connect
 
     func testManualConnectNormalizesTheAddress() {
         prompts.connectAnswer = " 192.168.1.5 "

@@ -8,7 +8,7 @@
 import Foundation
 
 extension Translations {
-    /// Mandarin Tradisional, istilah mengikuti macOS Taiwan (偏好設定, 結束, 拷貝, 登入項目).
+    /// Traditional Mandarin; terms follow macOS in Taiwan (偏好設定, 結束, 拷貝, 登入項目).
     static let chinese: [L10nKey: String] = [
         .menuChecking: "正在偵測裝置…",
         .menuNoDevices: "沒有已連線的裝置",

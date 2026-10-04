@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Keadaan yang ditampilkan UI hasil polling terakhir.
+/// State shown by the UI from the latest poll.
 enum ADBStatus: Equatable {
     case devices([ADBDevice])
     case adbNotFound(customPath: String?)

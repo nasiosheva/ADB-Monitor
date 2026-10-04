@@ -7,8 +7,8 @@
 
 import AppKit
 
-/// Menu utama minimal. App accessory tidak menampilkannya, tetapi tanpa menu Edit ini
-/// ⌘C/⌘V/⌘A tidak berfungsi di text field Preferences.
+/// Minimal main menu. An accessory app does not show it, but without this Edit menu
+/// ⌘C/⌘V/⌘A do not work in the Preferences text fields.
 enum MainMenuBuilder {
 
     static func build() -> NSMenu {

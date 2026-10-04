@@ -9,7 +9,7 @@ import AppKit
 
 extension NSMenuItem {
 
-    /// Item informasi non-interaktif (abu-abu).
+    /// Non-interactive information item (grayed out).
     static func info(_ title: String) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false

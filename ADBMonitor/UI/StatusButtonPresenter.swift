@@ -7,7 +7,7 @@
 
 import AppKit
 
-/// Menentukan tampilan tombol status item di menu bar untuk sebuah `ADBStatus`.
+/// Decides how the status item button in the menu bar looks for an `ADBStatus`.
 @MainActor
 struct StatusButtonPresenter {
 
@@ -16,7 +16,7 @@ struct StatusButtonPresenter {
         let title: String
     }
 
-    /// Ikon merek dari asset catalog (`MenuBarIcon`); jatuh ke SF Symbol jika asset tidak ditemukan.
+    /// Brand icon from the asset catalog (`MenuBarIcon`); falls back to an SF Symbol if the asset is missing.
     private static let brandIcon: NSImage? = templateImage(named: "MenuBarIcon") ?? symbol("iphone")
     private static let warningIcon: NSImage? = symbol("exclamationmark.triangle")
 
@@ -46,7 +46,7 @@ struct StatusButtonPresenter {
 
     // MARK: - Image loading
 
-    /// Template image mengikuti light/dark mode secara otomatis.
+    /// A template image follows light/dark mode automatically.
     private static func templateImage(named name: String) -> NSImage? {
         guard let image = NSImage(named: name) else { return nil }
         image.isTemplate = true

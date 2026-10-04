@@ -19,7 +19,7 @@ enum ProcessError: Error, Equatable {
     case timedOut
 }
 
-/// Abstraksi eksekusi command supaya konsumen tidak bergantung pada `Process`.
+/// Abstraction of command execution so consumers do not depend on `Process`.
 protocol ProcessRunning {
     func run(executable: String,
              arguments: [String],
@@ -27,16 +27,16 @@ protocol ProcessRunning {
              completion: @escaping (Result<ProcessOutput, ProcessError>) -> Void)
 }
 
-/// Menjalankan command di background queue dan mengirim hasilnya ke `completionQueue`.
+/// Runs a command on a background queue and delivers the result to `completionQueue`.
 ///
-/// Tidak ada state yang dipertahankan antar pemanggilan: setiap `Process`, `Pipe`, dan handler dibuat
-/// per-run lalu dilepas sebelum completion dipanggil.
-final class ProcessManager: ProcessRunning, @unchecked Sendable {  // properti hanya `let`; queue thread-safe
+/// No state is kept between calls: every `Process`, `Pipe`, and handler is created per run
+/// and released before the completion is called.
+final class ProcessManager: ProcessRunning, @unchecked Sendable {  // only `let` properties; the queue is thread-safe
 
-    /// Batas menunggu EOF setelah proses keluar; `adb` bisa meninggalkan daemon child yang memegang pipe.
+    /// Limit for waiting on EOF after the process exits; `adb` can leave a daemon child that holds the pipe.
     private static let drainTimeout: TimeInterval = 1
 
-    /// Direktori tambahan untuk PATH karena aplikasi GUI tidak mewarisi PATH dari shell.
+    /// Extra directories for PATH, because a GUI app does not inherit PATH from the shell.
     private static let extraSearchPaths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
 
     private let workQueue = DispatchQueue(label: "ADBMonitor.ProcessManager", qos: .utility, attributes: .concurrent)
@@ -52,7 +52,7 @@ final class ProcessManager: ProcessRunning, @unchecked Sendable {  // properti h
              arguments: [String],
              timeout: TimeInterval,
              completion: @escaping (Result<ProcessOutput, ProcessError>) -> Void) {
-        // `completion` dipanggil tepat sekali dan tidak diakses dari thread lain, jadi aman dibawa lewat queue.
+        // `completion` is called once and not used from other threads, so it is safe to carry across the queue.
         let completion = UncheckedSendable(completion)
         workQueue.async { [self] in
             let result = execute(executable: executable, arguments: arguments, timeout: timeout)
@@ -73,7 +73,7 @@ final class ProcessManager: ProcessRunning, @unchecked Sendable {  // properti h
         let errPipe = Pipe()
         let process = makeProcess(executable: executable, arguments: arguments, stdout: outPipe, stderr: errPipe)
 
-        // Pipe dibaca secara asynchronous supaya output besar tidak membuat proses deadlock.
+        // Pipes are read asynchronously so large output cannot deadlock the process.
         let outCollector = ProcessStreamCollector(handle: outPipe.fileHandleForReading)
         let errCollector = ProcessStreamCollector(handle: errPipe.fileHandleForReading)
 
@@ -89,7 +89,7 @@ final class ProcessManager: ProcessRunning, @unchecked Sendable {  // properti h
         process.waitUntilExit()
         timeoutGuard.cancel()
 
-        let drainDeadline = DispatchTime.now() + Self.drainTimeout  // satu batas bersama untuk kedua stream
+        let drainDeadline = DispatchTime.now() + Self.drainTimeout  // one shared deadline for both streams
         let stdout = outCollector.finish(until: drainDeadline)
         let stderr = errCollector.finish(until: drainDeadline)
 

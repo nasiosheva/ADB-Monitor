@@ -7,13 +7,13 @@
 
 import Foundation
 
-/// Aksi daya yang bisa dikirim ke satu device lewat adb.
-/// Menambah aksi baru cukup dengan menambah case; menu dan dialog konfirmasi mengikuti otomatis.
+/// A power action that can be sent to one device through adb.
+/// Adding an action only takes a new case; the menu and the confirmation dialog follow automatically.
 enum PowerAction: CaseIterable {
     case restart
     case shutdown
 
-    /// Argumen setelah `adb -s <serial>`.
+    /// Arguments after `adb -s <serial>`.
     var adbArguments: [String] {
         switch self {
         case .restart: return ["reboot"]
@@ -21,7 +21,7 @@ enum PowerAction: CaseIterable {
         }
     }
 
-    // Kunci teks, bukan teks jadi: terjemahannya ada di `Localization/` dan mengikuti bahasa yang dipilih.
+    // Text keys, not finished text: translations live in `Localization/` and follow the selected language.
 
     var menuTitleKey: L10nKey {
         switch self {
@@ -37,7 +37,7 @@ enum PowerAction: CaseIterable {
         }
     }
 
-    /// Judul dialog konfirmasi; argumen: nama device.
+    /// Confirmation dialog title; argument: device name.
     var confirmTitleKey: L10nKey {
         switch self {
         case .restart: return .powerRestartConfirmTitle
@@ -45,7 +45,7 @@ enum PowerAction: CaseIterable {
         }
     }
 
-    /// Isi dialog konfirmasi; argumen: serial device.
+    /// Confirmation dialog body; argument: device serial.
     var confirmBodyKey: L10nKey {
         switch self {
         case .restart: return .powerRestartConfirmBody
@@ -53,7 +53,7 @@ enum PowerAction: CaseIterable {
         }
     }
 
-    /// Judul dialog gagal; argumen: nama device.
+    /// Failure dialog title; argument: device name.
     var failureTitleKey: L10nKey {
         switch self {
         case .restart: return .powerRestartFailureTitle
@@ -63,9 +63,9 @@ enum PowerAction: CaseIterable {
 
     func isAvailable(for state: ADBDevice.State) -> Bool {
         switch self {
-        // `adb reboot` bisa dikirim ke device normal maupun yang berada di recovery.
+        // `adb reboot` can be sent to a normal device and to one that is in recovery.
         case .restart: return state == .device || state == .recovery
-        // Shutdown lewat shell, jadi hanya untuk device yang booting normal.
+        // Shutdown goes through the shell, so it is only for devices that booted normally.
         case .shutdown: return state == .device
         }
     }

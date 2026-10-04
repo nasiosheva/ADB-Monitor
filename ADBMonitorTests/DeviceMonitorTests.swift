@@ -24,7 +24,7 @@ final class DeviceMonitorTests: XCTestCase {
         super.setUp()
         service = FakeADBService()
         discovery = FakeWirelessDiscovery()
-        settings = MutableDiscoverySettings(false)   // tes lama tidak menyentuh penemuan Wi-Fi
+        settings = MutableDiscoverySettings(false)   // the older tests do not touch Wi-Fi discovery
         scheduler = FakeScheduler()
         center = NotificationCenter()
         emitted = []
@@ -134,7 +134,7 @@ final class DeviceMonitorTests: XCTestCase {
         XCTAssertEqual(emitted, [.adbNotFound(customPath: nil)])
     }
 
-    // MARK: - Penemuan Wi-Fi
+    // MARK: - Wi-Fi discovery
 
     func testDiscoveryRunsAfterTheDeviceListWhenEnabled() {
         settings.wirelessDiscoveryEnabled = true

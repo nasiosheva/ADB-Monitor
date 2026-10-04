@@ -7,14 +7,14 @@
 
 import AppKit
 
-/// Abstraksi jendela Preferences, supaya `AppCoordinator` bisa diuji tanpa menampilkan jendela sungguhan.
+/// Abstraction of the Preferences window, so `AppCoordinator` can be tested without showing a real window.
 @MainActor
 protocol PreferencesPresenting: AnyObject {
-    /// Memuat nilai tersimpan lalu menampilkan jendela di depan.
+    /// Loads the stored values, then shows the window in front.
     func present()
 }
 
-/// Jendela Preferences: path ADB kustom, interval refresh, bahasa, dan launch at login.
+/// Preferences window: custom ADB path, refresh interval, language, and launch at login.
 final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate, PreferencesPresenting {
 
     private let preferences: PreferencesStoring
@@ -22,7 +22,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     private let launchAtLogin: LaunchAtLoginControlling
     private let l10n: Localizing
 
-    // Label statis disimpan agar teksnya bisa diganti ketika bahasa berubah.
+    // Static labels are kept so their text can be replaced when the language changes.
     private let pathTitle = NSTextField(labelWithString: "")
     private let intervalTitle = NSTextField(labelWithString: "")
     private let languageTitle = NSTextField(labelWithString: "")
@@ -71,7 +71,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         loadStoredValues()
 
         if !window.isVisible { window.center() }
-        NSApp.activate(ignoringOtherApps: true)  // app accessory (tanpa Dock) harus diaktifkan manual
+        NSApp.activate(ignoringOtherApps: true)  // an accessory app (no Dock icon) must be activated manually
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
     }
@@ -104,7 +104,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     private func makePathRow() -> NSView {
         pathField.delegate = self
         pathField.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        // Tanpa lebar minimum, lebar kolom ikut teks catatan di bawahnya dan isian bisa menyempit jadi ~70 pt.
+        // Without a minimum width, the column follows the note text below it and the field can shrink to ~70 pt.
         pathField.widthAnchor.constraint(greaterThanOrEqualToConstant: 220).isActive = true
 
         chooseButton.target = self
@@ -180,8 +180,8 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
 
     // MARK: - Localization
 
-    /// Menerapkan bahasa yang sedang aktif ke semua teks statis. Dipanggil setiap jendela dibuka,
-    /// karena bahasa bisa berubah saat jendela tertutup.
+    /// Applies the active language to all static text. Called every time the window opens,
+    /// because the language can change while the window is closed.
     private func applyLocalizedStrings() {
         window?.title = l10n.text(.prefsWindowTitle)
         pathTitle.stringValue = l10n.text(.prefsAdbPath)
@@ -213,7 +213,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     }
 
     private func selectedLanguagePreference() -> LanguagePreference {
-        let index = languagePopup.indexOfSelectedItem - 1   // item 0 adalah "ikuti sistem"
+        let index = languagePopup.indexOfSelectedItem - 1   // item 0 is "follow system"
         guard AppLanguage.allCases.indices.contains(index) else { return .system }
         return .explicit(AppLanguage.allCases[index])
     }
@@ -230,7 +230,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         loadLaunchAtLogin()
     }
 
-    /// Status login item dibaca ulang dari sistem setiap jendela dibuka, karena bisa berubah di System Settings.
+    /// The login item state is re-read from the system each time the window opens; System Settings can change it.
     private func loadLaunchAtLogin() {
         let status = launchAtLogin.status
         launchCheckbox.state = status.isOn ? .on : .off
@@ -246,7 +246,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         }
     }
 
-    /// Mengembalikan error jika perubahan ditolak sistem; `nil` jika berhasil atau tidak ada yang berubah.
+    /// Returns the error if the system rejected the change; `nil` if it succeeded or nothing changed.
     private func applyLaunchAtLogin() -> Error? {
         let wanted = launchCheckbox.state == .on
         guard launchCheckbox.isEnabled, wanted != launchAtLogin.status.isOn else { return nil }
@@ -308,8 +308,8 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
                          wirelessDiscovery: wirelessCheckbox.state == .on)
 
         if let error = applyLaunchAtLogin() {
-            // Pengaturan lain sudah tersimpan; jendela tetap terbuka agar pengguna melihat kegagalan ini.
-            applyLocalizedStrings()   // bahasa mungkin baru saja berubah
+            // The other settings are already saved; the window stays open so the user sees this failure.
+            applyLocalizedStrings()   // the language may have just changed
             loadStoredValues()
             showLaunchAtLoginError(error)
             return

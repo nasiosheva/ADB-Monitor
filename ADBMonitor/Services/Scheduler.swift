@@ -11,7 +11,7 @@ protocol ScheduledTask {
     func cancel()
 }
 
-/// Abstraksi penjadwalan satu kali eksekusi, supaya `DeviceMonitor` tidak bergantung pada `Timer`.
+/// Abstraction for scheduling a one-shot execution, so `DeviceMonitor` does not depend on `Timer`.
 protocol Scheduling {
     func schedule(after interval: TimeInterval, _ action: @escaping () -> Void) -> ScheduledTask
 }
@@ -20,13 +20,13 @@ extension Timer: ScheduledTask {
     func cancel() { invalidate() }
 }
 
-/// Menjadwalkan lewat `Timer` di main run loop.
+/// Schedules through a `Timer` on the main run loop.
 struct RunLoopScheduler: Scheduling {
     func schedule(after interval: TimeInterval, _ action: @escaping () -> Void) -> ScheduledTask {
-        // Timer ditambahkan ke `RunLoop.main`, sehingga `action` selalu berjalan di main thread.
+        // The timer is added to `RunLoop.main`, so `action` always runs on the main thread.
         let action = UncheckedSendable(action)
         let timer = Timer(timeInterval: interval, repeats: false) { _ in action.value() }
-        // `.common` supaya timer tetap jalan ketika menu sedang terbuka (event tracking mode).
+        // `.common` so the timer keeps firing while a menu is open (event tracking mode).
         RunLoop.main.add(timer, forMode: .common)
         return timer
     }

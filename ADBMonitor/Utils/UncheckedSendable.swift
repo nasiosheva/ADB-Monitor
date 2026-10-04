@@ -7,10 +7,10 @@
 
 import Foundation
 
-/// Membawa nilai non-Sendable melewati batas `@Sendable`.
+/// Carries a non-Sendable value across a `@Sendable` boundary.
 ///
-/// Hanya dipakai di dua titik yang invariannya terjamin dan terdokumentasi di tempat pemakaian:
-/// closure yang dipanggil tepat sekali, dan closure yang hanya dijalankan di main run loop.
+/// Only used in two places whose invariants are guaranteed and documented where it is used:
+/// a closure that is called exactly once, and a closure that only runs on the main run loop.
 struct UncheckedSendable<Value>: @unchecked Sendable {
     let value: Value
 

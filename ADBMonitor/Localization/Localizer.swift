@@ -8,14 +8,14 @@
 import Foundation
 
 extension Notification.Name {
-    /// Dikirim setelah bahasa efektif berubah, supaya UI yang sedang tampil menyegarkan teksnya.
+    /// Posted after the effective language changed, so the UI that is on screen refreshes its text.
     static let languageDidChange = Notification.Name("ADBMonitor.LanguageDidChange")
 }
 
-/// Menyediakan teks antarmuka dalam bahasa yang sedang dipilih.
+/// Provides interface text in the language that is currently selected.
 @MainActor
 protocol Localizing: AnyObject {
-    /// Bahasa efektif (sudah memperhitungkan pilihan "ikuti sistem").
+    /// Effective language (already accounts for the "follow system" choice).
     var language: AppLanguage { get }
     func text(_ key: L10nKey, arguments: [String]) -> String
 }
@@ -50,7 +50,7 @@ extension Localizing {
     }
 }
 
-/// Menerjemahkan lewat tabel di `Translations`. Bahasa efektif dihitung ulang setiap preferensi disimpan.
+/// Translates via the `Translations` tables. The effective language is recomputed on every preferences save.
 @MainActor
 final class Localizer: Localizing {
 

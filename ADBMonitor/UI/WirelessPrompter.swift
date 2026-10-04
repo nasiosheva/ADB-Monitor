@@ -7,7 +7,7 @@
 
 import AppKit
 
-/// Dialog input untuk koneksi Wi-Fi. Mengembalikan `nil` jika pengguna membatalkan.
+/// Input dialogs for Wi-Fi connections. Return `nil` if the user cancels.
 @MainActor
 protocol WirelessPrompting {
     func askConnectAddress() -> String?

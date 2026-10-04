@@ -7,16 +7,16 @@
 
 import AppKit
 
-/// Lifecycle aplikasi sekaligus composition root: satu-satunya tempat yang mengenal tipe konkret.
+/// App lifecycle and composition root: the only place that knows the concrete types.
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var coordinator: AppCoordinator?
 
-    /// Entry point eksplisit: `@main` saja hanya memanggil `NSApplicationMain` yang baru membuat delegate
-    /// jika ada nib, sedangkan proyek ini tidak memakai nib. `static func main()` di kelas `@MainActor`
-    /// berjalan di main actor, dan `NSApplication.delegate` weak sehingga instance harus dipegang `main()`.
+    /// Explicit entry point: `@main` alone only calls `NSApplicationMain`, which creates the delegate
+    /// only when a nib exists, and this project has no nib. `static func main()` in a `@MainActor`
+    /// class runs on the main actor, and `NSApplication.delegate` is weak, so `main()` must hold the instance.
     static func main() {
         let delegate = AppDelegate()
         let application = NSApplication.shared
@@ -25,10 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Saat dijadikan host unit test, jangan membuat item menu bar atau menjalankan adb sungguhan.
+        // When hosted by unit tests, do not create a menu bar item or run a real adb.
         guard NSClassFromString("XCTestCase") == nil else { return }
 
-        NSApp.setActivationPolicy(.accessory)  // menu bar saja, tanpa ikon Dock
+        NSApp.setActivationPolicy(.accessory)  // menu bar only, no Dock icon
         NSApp.mainMenu = MainMenuBuilder.build()
 
         let coordinator = makeCoordinator()

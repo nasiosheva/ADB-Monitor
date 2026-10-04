@@ -11,7 +11,7 @@ protocol WirelessServiceParsing {
     func parse(_ output: String) -> [WirelessService]
 }
 
-/// Mem-parse keluaran `adb mdns services`:
+/// Parses the output of `adb mdns services`:
 ///
 ///     List of discovered mdns services
 ///     adb-R9CN4057BXJ-aBcDeF	_adb-tls-connect._tcp.	192.168.1.5:37899
@@ -32,7 +32,7 @@ struct WirelessServiceParser: WirelessServiceParsing {
         return services.sorted(by: Self.isOrderedBefore)
     }
 
-    /// Urut berdasarkan nama; untuk nama yang sama, layanan "connect" di depan "pairing".
+    /// Sorted by name; for the same name, the "connect" service comes before "pairing".
     private static func isOrderedBefore(_ lhs: WirelessService, _ rhs: WirelessService) -> Bool {
         if lhs.name != rhs.name { return lhs.name < rhs.name }
         return lhs.kind == .connect && rhs.kind == .pairing
@@ -52,7 +52,7 @@ struct WirelessServiceParser: WirelessServiceParsing {
         return nil
     }
 
-    /// `192.168.1.5:37899` -> (`192.168.1.5`, 37899). Alamat tanpa port atau dengan port di luar rentang ditolak.
+    /// `192.168.1.5:37899` -> (`192.168.1.5`, 37899). Addresses with no port or an out-of-range port are rejected.
     private func endpoint(from token: String) -> (host: String, port: Int)? {
         guard let colon = token.lastIndex(of: ":"),
               let port = Int(token[token.index(after: colon)...]),

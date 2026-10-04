@@ -7,8 +7,8 @@
 
 import AppKit
 
-/// Menghubungkan monitor device, status bar, dan aksi pengguna.
-/// Semua dependensi berupa protokol sehingga bisa diganti (mis. saat testing).
+/// Wires the device monitor, the status bar, and user actions together.
+/// Every dependency is a protocol, so it can be replaced (for example in tests).
 @MainActor
 final class AppCoordinator: StatusMenuActionHandling {
 
@@ -78,7 +78,7 @@ final class AppCoordinator: StatusMenuActionHandling {
 
         service.perform(action, on: device.serial) { [weak self] result in
             guard let self = self else { return }
-            self.monitor.refresh()  // daftar device segera diperbarui, tanpa menunggu poll berikutnya
+            self.monitor.refresh()  // refresh the device list right away instead of waiting for the next poll
             if case .failure(let error) = result {
                 self.alerts.showFailure(of: action, on: device, error: error)
             }
@@ -93,7 +93,7 @@ final class AppCoordinator: StatusMenuActionHandling {
         }
     }
 
-    // MARK: - WirelessActionHandling (diteruskan ke WirelessCoordinator)
+    // MARK: - WirelessActionHandling (forwarded to WirelessCoordinator)
 
     func statusMenu(didRequestConnectTo address: String) {
         wireless.statusMenu(didRequestConnectTo: address)

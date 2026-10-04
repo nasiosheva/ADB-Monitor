@@ -8,9 +8,9 @@
 import Foundation
 
 extension Translations {
-    /// Kanton tulisan sehari-hari (aksara Tradisional): 嘅 咗 唔 冇 喺 緊 搵.
+    /// Colloquial written Cantonese (Traditional characters): 嘅 咗 唔 冇 喺 緊 搵.
     ///
-    /// DRAF: ditulis oleh model AI dan belum ditinjau penutur asli. Perlu diperiksa sebelum dianggap final.
+    /// DRAFT: written by an AI model and not yet reviewed by a native speaker. Review before treating as final.
     static let cantonese: [L10nKey: String] = [
         .menuChecking: "搵緊裝置…",
         .menuNoDevices: "冇連接任何裝置",

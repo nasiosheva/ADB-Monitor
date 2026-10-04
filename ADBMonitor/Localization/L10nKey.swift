@@ -7,10 +7,10 @@
 
 import Foundation
 
-/// Kunci semua teks yang tampil ke pengguna. Setiap bahasa wajib punya entri untuk setiap kunci
-/// (diperiksa oleh pengujian); kunci yang hilang jatuh ke bahasa Inggris.
+/// Keys for all text shown to the user. Every language must have an entry for every key
+/// (checked by tests); a missing key falls back to English.
 enum L10nKey: String, CaseIterable {
-    // Menu: daftar device dan error ADB
+    // Menu: device list and ADB errors
     case menuChecking
     case menuNoDevices
     case menuDevicesHeader
@@ -21,7 +21,7 @@ enum L10nKey: String, CaseIterable {
     case menuAdbSetPathHint
     case menuAdbError
 
-    // Menu: detail device
+    // Menu: device details
     case detailStatus
     case detailSerial
     case detailConnection
@@ -29,10 +29,10 @@ enum L10nKey: String, CaseIterable {
     case detailProduct
     case detailDevice
     case detailTransportID
-    /// Format "label: nilai" (tanda baca berbeda antar bahasa).
+    /// "label: value" format (punctuation differs between languages).
     case labelValue
 
-    // Menu: perintah
+    // Menu: commands
     case menuCopySerial
     case menuOpenDeveloperOptions
     case developerOptionsFailureTitle
@@ -40,7 +40,7 @@ enum L10nKey: String, CaseIterable {
     case menuPreferences
     case menuQuit
 
-    // Status device
+    // Device states
     case stateConnected
     case stateOffline
     case stateUnauthorized
@@ -51,18 +51,18 @@ enum L10nKey: String, CaseIterable {
     case stateSideload
     case stateBootloader
 
-    // Petunjuk per status
+    // Hint per state
     case hintUnauthorized
     case hintNoPermissions
     case hintOffline
 
-    // Tipe koneksi
+    // Connection types
     case connectionUSB
     case connectionWiFi
     case connectionEmulator
     case connectionUnknown
 
-    // Aksi daya
+    // Power actions
     case powerRestartMenu
     case powerShutdownMenu
     case powerRestartVerb
@@ -76,13 +76,13 @@ enum L10nKey: String, CaseIterable {
 
     case commonCancel
 
-    // Pesan error
+    // Error messages
     case errorAdbNotFound
     case errorTimedOut
     case errorLaunchFailed
     case errorLaunchAtLoginUnsupported
 
-    // Jendela Preferences
+    // Preferences window
     case prefsWindowTitle
     case prefsAdbPath
     case prefsAdbPlaceholder
@@ -110,7 +110,7 @@ enum L10nKey: String, CaseIterable {
     case menuDisconnect
     case menuSwitchToWiFi
 
-    // Wi-Fi: dialog input
+    // Wi-Fi: input dialogs
     case connectPromptTitle
     case connectPromptBody
     case connectPromptPlaceholder
@@ -121,7 +121,7 @@ enum L10nKey: String, CaseIterable {
     case pairCodePlaceholder
     case pairPromptButton
 
-    // Wi-Fi: hasil
+    // Wi-Fi: results
     case pairSuccessTitle
     case pairSuccessBody
     case wirelessConnectFailureTitle

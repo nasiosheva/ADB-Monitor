@@ -7,9 +7,9 @@
 
 import Foundation
 
-/// Mengumpulkan data dari `FileHandle` lewat `readabilityHandler`.
-/// Handler hanya memegang referensi weak ke collector sehingga tidak ada retain cycle.
-final class ProcessStreamCollector: @unchecked Sendable {  // seluruh state mutable dilindungi `lock`
+/// Collects data from a `FileHandle` through `readabilityHandler`.
+/// The handler only holds a weak reference to the collector, so there is no retain cycle.
+final class ProcessStreamCollector: @unchecked Sendable {  // all mutable state is protected by `lock`
     private let lock = NSLock()
     private var buffer = Data()
     private let eof = DispatchSemaphore(value: 0)
@@ -28,7 +28,7 @@ final class ProcessStreamCollector: @unchecked Sendable {  // seluruh state muta
         }
     }
 
-    /// Menunggu EOF sampai `deadline` lalu melepas handler, apa pun hasilnya.
+    /// Waits for EOF until `deadline`, then removes the handler, whatever the outcome.
     func finish(until deadline: DispatchTime) -> String {
         _ = eof.wait(timeout: deadline)
         handle.readabilityHandler = nil
@@ -42,7 +42,7 @@ final class ProcessStreamCollector: @unchecked Sendable {  // seluruh state muta
     }
 }
 
-/// Menghentikan `Process` yang melewati batas waktu. Hanya memegang referensi weak ke proses.
+/// Stops a `Process` that exceeds its time limit. Only holds a weak reference to the process.
 final class ProcessTimeout {
     private let lock = NSLock()
     private var fired = false

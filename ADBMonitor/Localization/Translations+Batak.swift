@@ -8,10 +8,10 @@
 import Foundation
 
 extension Translations {
-    /// Batak Toba (`bbc`). Istilah teknis memakai kata serapan bahasa Indonesia, seperti lazim dipakai penutur.
+    /// Batak Toba (`bbc`). Technical terms use Indonesian loanwords, as speakers commonly do.
     ///
-    /// DRAF: ditulis oleh model AI dengan pengetahuan terbatas tentang bahasa Batak Toba dan belum ditinjau
-    /// penutur asli. Kalimat yang tidak yakin sengaja memakai kata Indonesia. Wajib ditinjau sebelum dianggap final.
+    /// DRAFT: written by an AI model with limited knowledge of Batak Toba and not yet reviewed by a
+    /// native speaker. Sentences I was unsure about deliberately use Indonesian words. Review before treating as final.
     static let batak: [L10nKey: String] = [
         .menuChecking: "Mangalului alat…",
         .menuNoDevices: "Ndang adong alat na marsambung",

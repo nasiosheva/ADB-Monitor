@@ -8,7 +8,7 @@
 import XCTest
 @testable import ADBMonitor
 
-/// Keluaran `am start` di sini meniru yang teramati pada Android 12 (Pixel 3a, adb 35.0.1).
+/// The `am start` output here mimics what was observed on Android 12 (Pixel 3a, adb 35.0.1).
 final class ADBServiceSettingsTests: XCTestCase {
 
     private func makeService(_ result: Result<ProcessOutput, ProcessError>,
@@ -43,7 +43,7 @@ final class ADBServiceSettingsTests: XCTestCase {
         XCTAssertNil(errorOf(service))
     }
 
-    /// `am start` exit 0 walau gagal; kegagalannya hanya berupa baris "Error: …" (diamati di stderr).
+    /// `am start` exits 0 even on failure; the failure is only an "Error: …" line (seen on stderr).
     func testAnErrorLineOnStderrIsAFailureEvenWithExitZero() {
         let message = "Error: Activity not started, unable to resolve Intent { act=android.settings.X flg=0x10000000 }"
         let (service, _) = makeService(.success(output("Starting: Intent { act=x }", stderr: message)))

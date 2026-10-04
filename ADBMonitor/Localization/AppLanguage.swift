@@ -7,18 +7,18 @@
 
 import Foundation
 
-/// Bahasa antarmuka yang tersedia.
+/// Interface languages that are available.
 enum AppLanguage: String, CaseIterable, Equatable {
     case english = "en"
     case indonesian = "id"
-    /// Mandarin tulisan Tradisional (gaya Taiwan).
+    /// Mandarin in Traditional script (Taiwan style).
     case chinese = "zh-Hant"
-    /// Kanton tulisan (aksara Tradisional, ragam sehari-hari Hong Kong).
+    /// Written Cantonese (Traditional characters, everyday Hong Kong register).
     case cantonese = "yue"
     /// Batak Toba (ISO 639-3: `bbc`).
     case batak = "bbc"
 
-    /// Nama bahasa dalam bahasa itu sendiri; tidak diterjemahkan agar selalu bisa dikenali pemakainya.
+    /// The language's name in that language itself; never translated so its speakers can always recognize it.
     var autonym: String {
         switch self {
         case .english: return "English"
@@ -29,8 +29,8 @@ enum AppLanguage: String, CaseIterable, Equatable {
         }
     }
 
-    /// Memilih bahasa dari daftar preferensi sistem (mis. `["id-ID", "en-US"]`).
-    /// Bahasa Inggris dipakai jika tidak ada yang cocok.
+    /// Picks a language from the system preference list (for example `["id-ID", "en-US"]`).
+    /// English is used when nothing matches.
     static func matching(preferredLanguages: [String]) -> AppLanguage {
         for identifier in preferredLanguages {
             let code = identifier.lowercased()
@@ -44,12 +44,12 @@ enum AppLanguage: String, CaseIterable, Equatable {
     }
 }
 
-/// Pilihan pengguna: mengikuti bahasa sistem, atau bahasa tertentu.
+/// The user's choice: follow the system language, or a specific language.
 enum LanguagePreference: Equatable {
     case system
     case explicit(AppLanguage)
 
-    /// Nilai yang disimpan di `UserDefaults`; `nil` berarti mengikuti sistem.
+    /// Value stored in `UserDefaults`; `nil` means follow the system.
     var storedValue: String? {
         switch self {
         case .system: return nil

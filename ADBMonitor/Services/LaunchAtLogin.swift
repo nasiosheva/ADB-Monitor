@@ -9,14 +9,14 @@ import Foundation
 import ServiceManagement
 
 enum LaunchAtLoginStatus: Equatable {
-    /// macOS terlalu lama untuk API login item resmi (butuh macOS 13).
+    /// macOS is too old for the official login item API (it needs macOS 13).
     case unsupported
     case disabled
     case enabled
-    /// Terdaftar, tetapi pengguna harus menyetujuinya di System Settings → General → Login Items.
+    /// Registered, but the user must approve it in System Settings → General → Login Items.
     case requiresApproval
 
-    /// `true` jika pengguna sudah meminta app dibuka saat login (termasuk yang menunggu persetujuan).
+    /// `true` if the user already asked for the app to open at login (including one waiting for approval).
     var isOn: Bool { self == .enabled || self == .requiresApproval }
 }
 
@@ -24,16 +24,16 @@ enum LaunchAtLoginError: Error {
     case unsupported
 }
 
-/// Mengatur apakah app dibuka otomatis saat login.
+/// Controls whether the app opens automatically at login.
 ///
-/// Sumber kebenarannya adalah sistem, bukan `UserDefaults`, karena pengguna juga bisa mengubahnya
-/// langsung di System Settings. Karena itu `status` selalu dibaca ulang, tidak di-cache.
+/// The source of truth is the system, not `UserDefaults`, because the user can also change it
+/// directly in System Settings. That is why `status` is always read again and never cached.
 protocol LaunchAtLoginControlling {
     var status: LaunchAtLoginStatus { get }
     func setEnabled(_ enabled: Bool) throws
 }
 
-/// Implementasi resmi lewat `SMAppService` (macOS 13+).
+/// Official implementation through `SMAppService` (macOS 13+).
 @available(macOS 13.0, *)
 struct SMAppServiceLaunchAtLogin: LaunchAtLoginControlling {
 
@@ -55,7 +55,7 @@ struct SMAppServiceLaunchAtLogin: LaunchAtLoginControlling {
     }
 }
 
-/// Dipakai di macOS 12, yang belum punya API login item resmi untuk app biasa.
+/// Used on macOS 12, which has no official login item API for regular apps.
 struct UnsupportedLaunchAtLogin: LaunchAtLoginControlling {
     var status: LaunchAtLoginStatus { .unsupported }
 

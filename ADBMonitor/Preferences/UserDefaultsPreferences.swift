@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Implementasi `PreferencesStoring` berbasis `UserDefaults`.
+/// `PreferencesStoring` implementation backed by `UserDefaults`.
 final class UserDefaultsPreferences: PreferencesStoring {
 
     private enum Key {

@@ -8,7 +8,7 @@
 import XCTest
 @testable import ADBMonitor
 
-/// Hasil `adb` dalam tes ini meniru perilaku yang diamati pada adb 35.0.1 (lihat komentar per tes).
+/// The `adb` results in these tests mimic behavior observed with adb 35.0.1 (see the comment on each test).
 final class ADBServiceWirelessTests: XCTestCase {
 
     private func ok(_ stdout: String = "") -> Result<ProcessOutput, ProcessError> {
@@ -28,7 +28,7 @@ final class ADBServiceWirelessTests: XCTestCase {
         return (service, runner)
     }
 
-    /// Menjalankan operasi `Result<Void, _>` dan mengembalikan error-nya (`nil` = sukses).
+    /// Runs a `Result<Void, _>` operation and returns its error (`nil` = success).
     private func errorOf(_ operation: (@escaping (Result<Void, ADBError>) -> Void) -> Void) -> ADBError? {
         var result: Result<Void, ADBError>?
         operation { result = $0 }
@@ -55,7 +55,7 @@ final class ADBServiceWirelessTests: XCTestCase {
         XCTAssertEqual(result, .failure(.commandFailed("error: mdns unavailable")))
     }
 
-    // MARK: connect (adb connect selalu exit 0, hasilnya hanya di stdout)
+    // MARK: connect (adb connect always exits 0, the result is only in stdout)
 
     func testConnectSuccess() {
         let (service, runner) = makeService([ok("connected to 192.168.1.5:5555\n")])
@@ -100,7 +100,7 @@ final class ADBServiceWirelessTests: XCTestCase {
                        .commandFailed("adb connect failed."))
     }
 
-    // MARK: disconnect (tanpa argumen, adb memutus SEMUA koneksi)
+    // MARK: disconnect (without an argument, adb drops ALL connections)
 
     func testDisconnectPassesTheSerial() {
         let (service, runner) = makeService([ok("disconnected 192.168.1.5:5555\n")])
@@ -219,7 +219,7 @@ final class ADBServiceWirelessTests: XCTestCase {
                        .commandFailed("error: device offline"))
     }
 
-    // MARK: Umum
+    // MARK: General
 
     func testWirelessCommandsReportMissingAdb() {
         let service = ADBService(pathProvider: StubPathProvider(adbPath: "/custom"),

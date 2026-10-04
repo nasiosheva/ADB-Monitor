@@ -7,10 +7,10 @@
 
 import Foundation
 
-/// Kumpulan tabel terjemahan, satu file per bahasa (`Translations+<Bahasa>.swift`).
+/// The set of translation tables, one file per language (`Translations+<Language>.swift`).
 ///
-/// Format: placeholder `%@` diisi berurutan, atau `%1$@`, `%2$@` bila urutan argumen berbeda antar bahasa.
-/// Semua tabel harus memuat seluruh `L10nKey` dengan jumlah placeholder yang sama seperti bahasa Inggris.
+/// Format: `%@` placeholders are filled in order, or `%1$@`, `%2$@` when argument order differs by language.
+/// Every table must contain all `L10nKey`s with the same number of placeholders as English.
 enum Translations {
     static func table(for language: AppLanguage) -> [L10nKey: String] {
         switch language {

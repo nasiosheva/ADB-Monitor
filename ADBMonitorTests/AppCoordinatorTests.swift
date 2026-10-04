@@ -81,7 +81,7 @@ final class AppCoordinatorTests: XCTestCase {
         XCTAssertEqual(monitor.stopCount, 1)
     }
 
-    // MARK: Permintaan dari menu
+    // MARK: Requests from the menu
 
     func testRefreshRequestRefreshesTheMonitor() {
         coordinator.statusMenuDidRequestRefresh()
@@ -96,7 +96,7 @@ final class AppCoordinatorTests: XCTestCase {
         XCTAssertEqual(preferencesWindow.presentCount, 2)
     }
 
-    // MARK: Aksi daya
+    // MARK: Power actions
 
     func testConfirmationIsAskedForTheRightActionAndDevice() {
         let device = Sample.device("SER7")

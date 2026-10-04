@@ -9,10 +9,10 @@ import AppKit
 
 @MainActor
 protocol AlertPresenting {
-    /// `true` jika pengguna menyetujui. Memblokir sampai dialog ditutup.
+    /// `true` if the user approves. Blocks until the dialog is closed.
     func confirm(_ action: PowerAction, on device: ADBDevice) -> Bool
     func showFailure(of action: PowerAction, on device: ADBDevice, error: ADBError)
-    /// Dialog kesalahan umum (judul dan isi sudah diterjemahkan oleh pemanggil).
+    /// General error dialog (title and body are already translated by the caller).
     func showError(title: String, message: String)
     func showInfo(title: String, message: String)
 }
@@ -61,7 +61,7 @@ struct AppKitAlertPresenter: AlertPresenting {
     }
 
     private func run(_ alert: NSAlert) -> NSApplication.ModalResponse {
-        NSApp.activate(ignoringOtherApps: true)  // app accessory (tanpa Dock) harus diaktifkan manual
+        NSApp.activate(ignoringOtherApps: true)  // an accessory app (no Dock icon) must be activated manually
         return alert.runModal()
     }
 }

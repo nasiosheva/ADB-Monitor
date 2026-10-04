@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Alur koneksi ADB lewat Wi-Fi: validasi input, panggil adb, segarkan daftar, lalu tampilkan hasilnya.
+/// Wi-Fi connection flows: validate input, run adb, refresh the list, then show the result.
 @MainActor
 final class WirelessCoordinator: WirelessActionHandling {
 
@@ -60,7 +60,7 @@ final class WirelessCoordinator: WirelessActionHandling {
 
         controller.pair(address: pairingAddress, code: input.code) { [weak self] result in
             guard let self = self else { return }
-            self.monitor.refresh()  // setelah pairing, adb biasanya menyambung sendiri lewat mDNS
+            self.monitor.refresh()  // after pairing, adb usually connects by itself through mDNS
             switch result {
             case .success:
                 self.alerts.showInfo(title: self.l10n.text(.pairSuccessTitle),
@@ -107,8 +107,8 @@ final class WirelessCoordinator: WirelessActionHandling {
         alerts.showError(title: l10n.text(titleKey, subject), message: message(for: error))
     }
 
-    /// "No route to host" padahal jaringan normal biasanya berarti server adb yang sudah berjalan tidak punya
-    /// izin Local Network (teramati pada uji ponsel nyata: server baru berhasil, server lama gagal).
+    /// "No route to host" while the network is fine usually means the already-running adb server lacks
+    /// Local Network permission (seen on a real phone: a new server worked, the old one failed).
     private func message(for error: ADBError) -> String {
         let base = l10n.message(for: error)
         if case .commandFailed(let raw) = error, raw.localizedCaseInsensitiveContains("no route to host") {

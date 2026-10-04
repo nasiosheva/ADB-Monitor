@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Satu baris hasil `adb devices -l`.
+/// One line of the output of `adb devices -l`.
 struct ADBDevice: Equatable, Hashable {
 
     enum State: Equatable, Hashable {
@@ -36,7 +36,7 @@ struct ADBDevice: Equatable, Hashable {
             }
         }
 
-        /// Kunci teks untuk label status; `nil` untuk status yang tidak dikenal (ditampilkan apa adanya).
+        /// Text key for the state label; `nil` for unknown states (shown as is).
         var labelKey: L10nKey? {
             switch self {
             case .device: return .stateConnected
@@ -77,7 +77,7 @@ struct ADBDevice: Equatable, Hashable {
     let transportID: String?
     let usbPath: String?
 
-    /// Nama yang ditampilkan di menu: model, lalu codename, lalu serial.
+    /// Name shown in the menu: model, then codename, then serial.
     var displayName: String {
         model ?? deviceName ?? product ?? serial
     }

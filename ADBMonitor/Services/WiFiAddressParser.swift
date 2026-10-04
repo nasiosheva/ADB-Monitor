@@ -7,15 +7,15 @@
 
 import Foundation
 
-/// Mengambil alamat IPv4 Wi-Fi sebuah device dari keluaran shell Android.
+/// Extracts the Wi-Fi IPv4 address of a device from Android shell output.
 enum WiFiAddressParser {
 
-    /// Mendukung dua bentuk keluaran:
+    /// Supports two output shapes:
     ///
     ///     1.1.1.1 via 192.168.1.1 dev wlan0 src 192.168.1.23 uid 2000      (ip route get)
     ///     inet 192.168.1.23/24 brd 192.168.1.255 scope global wlan0         (ip -f inet addr show wlan0)
     ///
-    /// Alamat loopback (127.x) dan 0.0.0.0 diabaikan.
+    /// Loopback addresses (127.x) and 0.0.0.0 are ignored.
     static func ipv4(in output: String) -> String? {
         let patterns = [#"\bsrc\s+(\d{1,3}(?:\.\d{1,3}){3})\b"#, #"\binet\s+(\d{1,3}(?:\.\d{1,3}){3})/"#]
         for pattern in patterns {

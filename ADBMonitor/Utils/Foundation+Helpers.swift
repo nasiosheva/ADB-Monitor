@@ -14,7 +14,7 @@ extension StringProtocol {
 }
 
 extension FileManager {
-    /// `true` jika `path` adalah file biasa (bukan direktori) yang bisa dieksekusi.
+    /// `true` if `path` is a regular file (not a directory) that can be executed.
     func isRunnableFile(atPath path: String) -> Bool {
         var isDirectory: ObjCBool = false
         return fileExists(atPath: path, isDirectory: &isDirectory)

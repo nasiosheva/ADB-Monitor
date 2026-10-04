@@ -7,22 +7,22 @@
 
 import Foundation
 
-/// Hanya penemuan layanan; dipisah dari `WirelessControlling` supaya `DeviceMonitor`
-/// tidak bergantung pada perintah koneksi.
+/// Service discovery only; separate from `WirelessControlling` so `DeviceMonitor`
+/// does not depend on the connection commands.
 protocol WirelessDiscovering {
     func discoverWireless(completion: @escaping (Result<[WirelessService], ADBError>) -> Void)
 }
 
 protocol WirelessControlling {
-    /// `adb connect`. `address` berbentuk `host[:port]` (port bawaan 5555).
+    /// `adb connect`. `address` has the form `host[:port]` (default port 5555).
     func connect(to address: String, completion: @escaping (Result<Void, ADBError>) -> Void)
-    /// `adb disconnect <serial>`. Tidak pernah menjalankan `adb disconnect` tanpa argumen, yang memutus semua koneksi.
+    /// `adb disconnect <serial>`. Never runs `adb disconnect` without an argument, which drops every connection.
     func disconnect(serial: String, completion: @escaping (Result<Void, ADBError>) -> Void)
-    /// `adb pair <host:port> <kode>`; port pairing wajib ada.
+    /// `adb pair <host:port> <code>`; the pairing port is required.
     func pair(address: String, code: String, completion: @escaping (Result<Void, ADBError>) -> Void)
     /// Alamat IPv4 Wi-Fi sebuah device yang tersambung (biasanya lewat USB).
     func wifiAddress(of serial: String, completion: @escaping (Result<String, ADBError>) -> Void)
-    /// `adb -s <serial> tcpip <port>`: memindahkan adbd ke mode TCP sampai device di-reboot.
+    /// `adb -s <serial> tcpip <port>`: moves adbd to TCP mode until the device is rebooted.
     func enableTCPIP(on serial: String, port: Int, completion: @escaping (Result<Void, ADBError>) -> Void)
 }
 
@@ -48,7 +48,7 @@ extension ADBService: WirelessDiscovering, WirelessControlling {
             completion(.failure(.invalidAddress))
             return
         }
-        // `adb connect` selalu exit 0, bahkan saat gagal; hasilnya hanya ada di teks stdout.
+        // `adb connect` always exits 0, even on failure; the result is only in the stdout text.
         execute(["connect", normalized], timeout: Self.connectTimeout) { result in
             completion(result.flatMap(Self.verifyConnected))
         }
@@ -88,7 +88,7 @@ extension ADBService: WirelessDiscovering, WirelessControlling {
                 completion(.success(address))
                 return
             }
-            // Hanya kegagalan perintah (mis. `ip route get` tidak ada) yang boleh dicoba ulang dengan cara lain.
+            // Only a command failure (for example `ip route get` is missing) may be retried another way.
             if case .failure(let error) = first, !Self.isCommandFailure(error) {
                 completion(.failure(error))
                 return

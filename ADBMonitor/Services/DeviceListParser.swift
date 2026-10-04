@@ -11,7 +11,7 @@ protocol DeviceListParsing {
     func parse(_ output: String) -> [ADBDevice]
 }
 
-/// Mem-parse output `adb devices -l`, misalnya:
+/// Parses the output of `adb devices -l`, for example:
 ///
 ///     List of devices attached
 ///     R58M123ABC   device usb:1-1 product:o1sxxx model:SM_G991B device:o1s transport_id:2
@@ -22,7 +22,7 @@ struct DeviceListParser: DeviceListParsing {
 
     private static let headerPrefix = "List of devices attached"
     private static let attributeKeys: Set<String> = ["product", "model", "device", "transport_id", "usb"]
-    /// adb versi baru menulis path USB tanpa prefix ("2-1"), versi lama dengan "usb:1-1".
+    /// Newer adb versions write the USB path without a prefix ("2-1"), older versions with "usb:1-1".
     private static let bareUSBPathPattern = #"^\d+-[\d.]+$"#
 
     func parse(_ output: String) -> [ADBDevice] {
@@ -37,7 +37,7 @@ struct DeviceListParser: DeviceListParsing {
     // MARK: - Line parsing
 
     private func parseDevice(from line: String) -> ADBDevice? {
-        // Baris yang diawali "*" adalah pesan daemon, misalnya "* daemon started successfully".
+        // Lines starting with "*" are daemon messages, for example "* daemon started successfully".
         guard !line.isEmpty, !line.hasPrefix("*") else { return nil }
 
         let tokens = line.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
@@ -55,7 +55,7 @@ struct DeviceListParser: DeviceListParsing {
                          usbPath: attributes["usb"])
     }
 
-    /// State "no permissions" terdiri dari dua kata sehingga perlu penanganan khusus.
+    /// The state "no permissions" is two words, so it needs special handling.
     private func parseState(from tokens: ArraySlice<String>) -> (ADBDevice.State, ArraySlice<String>) {
         guard let first = tokens.first else { return (.unknown(""), []) }
         if first == "no", tokens.dropFirst().first == "permissions" {

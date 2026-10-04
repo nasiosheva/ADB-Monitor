@@ -8,7 +8,7 @@
 import XCTest
 @testable import ADBMonitor
 
-/// Memakai proses sungguhan (`/bin/sh`, `/usr/bin/yes`).
+/// Uses real processes (`/bin/sh`, `/usr/bin/yes`).
 final class ProcessManagerTests: XCTestCase {
 
     private typealias Outcome = (result: Result<ProcessOutput, ProcessError>, seconds: TimeInterval)
@@ -60,7 +60,7 @@ final class ProcessManagerTests: XCTestCase {
     }
 
     func testChildHoldingThePipeDoesNotBlockCompletion() throws {
-        // Induk keluar segera, anak (sleep 5) masih memegang ujung pipe seperti daemon adb.
+        // The parent exits right away, the child (sleep 5) still holds the pipe end, like the adb daemon.
         let r = try XCTUnwrap(run("/bin/sh", ["-c", "(sleep 5 &) ; echo hi"]))
         XCTAssertEqual(try r.result.get().stdout.trimmed, "hi")
         XCTAssertLessThan(r.seconds, 3.5, "harus selesai di sekitar batas drain 1 detik, bukan menunggu 5 detik")

@@ -10,7 +10,7 @@ import XCTest
 
 final class ADBLocatorTests: XCTestCase {
 
-    /// Direktori sementara berisi file `adb` yang bisa dieksekusi di `relativePath`.
+    /// A temporary directory with an executable `adb` file at `relativePath`.
     private func makeFakeADB(at relativePath: String = "adb") throws -> (root: URL, adb: String) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let file = root.appendingPathComponent(relativePath)
@@ -21,7 +21,7 @@ final class ADBLocatorTests: XCTestCase {
         return (root, file.path)
     }
 
-    /// Hermetik: tanpa jalur "terkenal" (mis. `/opt/homebrew/bin/adb`) supaya hasil tidak bergantung pada mesin.
+    /// Hermetic: no "well-known" paths (such as `/opt/homebrew/bin/adb`), so results do not depend on the machine.
     private func locator(environment: [String: String] = [:],
                          home: String = "/nonexistent",
                          wellKnown: [String] = []) -> ADBLocator {
@@ -35,7 +35,7 @@ final class ADBLocatorTests: XCTestCase {
 
     func testInvalidCustomPathReturnsNilWithoutFallback() throws {
         let fake = try makeFakeADB()
-        // PATH berisi adb yang valid, tetapi path kustom yang salah tidak boleh jatuh ke deteksi otomatis.
+        // PATH has a valid adb, but a wrong custom path must not fall back to auto-detection.
         let result = locator(environment: ["PATH": fake.root.path]).locate(customPath: "/nope/adb")
         XCTAssertNil(result)
     }

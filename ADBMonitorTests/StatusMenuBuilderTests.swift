@@ -9,13 +9,13 @@ import AppKit
 import XCTest
 @testable import ADBMonitor
 
-/// Memeriksa isi dan perilaku menu secara struktural. Tampilan visualnya (warna, tata letak) tetap perlu dilihat mata.
+/// Checks the content and behavior of the menu structurally. The visual look (colors, layout) still needs a human eye.
 @MainActor
 final class StatusMenuBuilderTests: XCTestCase {
 
     private var handler: RecordingMenuHandler!
-    /// `NSMenuItem.target` bersifat weak: builder harus tetap hidup selama menu dipakai
-    /// (di aplikasi dipegang oleh `StatusBarController`).
+    /// `NSMenuItem.target` is weak: the builder must stay alive while the menu is in use
+    /// (in the app it is owned by `StatusBarController`).
     private var builders: [StatusMenuBuilder] = []
 
     override func setUp() {
@@ -54,14 +54,14 @@ final class StatusMenuBuilderTests: XCTestCase {
         return titles(try XCTUnwrap(m.items[index].submenu))
     }
 
-    /// Mengirim aksi item persis seperti yang dilakukan AppKit saat diklik.
+    /// Sends an item's action exactly like AppKit does when it is clicked.
     private func click(_ item: NSMenuItem, file: StaticString = #filePath, line: UInt = #line) throws {
         let target = try XCTUnwrap(item.target as? NSObject, file: file, line: line)
         let action = try XCTUnwrap(item.action, file: file, line: line)
         _ = target.perform(action, with: item)
     }
 
-    // MARK: Struktur per status
+    // MARK: Structure per state
 
     func testCheckingState() {
         XCTAssertEqual(titles(menu(for: nil)),
@@ -96,7 +96,7 @@ final class StatusMenuBuilderTests: XCTestCase {
         XCTAssertFalse(m.items[0].isEnabled)
     }
 
-    // MARK: Daftar device
+    // MARK: Device list
 
     func testDeviceListHeaderAndItemTitles() {
         let second = Sample.device("BBB", state: .unauthorized, model: "SM A107F")
@@ -169,7 +169,7 @@ final class StatusMenuBuilderTests: XCTestCase {
         XCTAssertEqual(try enabled(.unauthorized), [false, false])
     }
 
-    // MARK: Aksi
+    // MARK: Actions
 
     func testCommandItemsInvokeTheHandler() throws {
         let m = menu(for: nil)
@@ -198,11 +198,11 @@ final class StatusMenuBuilderTests: XCTestCase {
         XCTAssertEqual(handler.powerRequests.map(\.device), [device, device])
     }
 
-    // MARK: Perilaku lain
+    // MARK: Other behavior
 
     func testItemTargetIsWeakSoTheOwnerMustKeepTheBuilderAlive() throws {
         let m = NSMenu()
-        // `autoreleasepool` agar objek benar-benar dilepas di sini, bukan menunggu akhir tes.
+        // `autoreleasepool` so the object is really released here, not at the end of the test.
         try autoreleasepool {
             let builder = makeBuilder()
             builder.populate(m, for: nil)

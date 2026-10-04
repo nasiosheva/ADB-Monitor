@@ -9,20 +9,20 @@ import Foundation
 
 @MainActor
 protocol DeviceMonitoring: AnyObject {
-    /// Dipanggil hanya ketika status berubah dibanding poll sebelumnya.
+    /// Called only when the status changed compared with the previous poll.
     var onStatusChange: ((ADBStatus) -> Void)? { get set }
-    /// Dipanggil hanya ketika daftar device yang tersedia lewat Wi-Fi (belum tersambung) berubah.
+    /// Called only when the list of devices available over Wi-Fi (not yet connected) changes.
     var onWirelessChange: (([WirelessService]) -> Void)? { get set }
     func start()
     func stop()
-    /// Polling segera. Jika polling sedang berjalan, satu putaran lagi dijalankan setelah selesai.
+    /// Polls right away. If a poll is already running, one more round runs after it finishes.
     func refresh()
 }
 
-/// Memanggil `ADBServicing.listDevices` secara berkala dan melaporkan perubahan status.
+/// Calls `ADBServicing.listDevices` periodically and reports status changes.
 ///
-/// Poll berikutnya dijadwalkan setelah poll sebelumnya selesai (bukan interval tetap) sehingga tidak
-/// pernah tumpang tindih. Semua API dipanggil dari main thread.
+/// The next poll is scheduled after the previous one finishes (not on a fixed interval), so polls
+/// never overlap. All APIs are called from the main thread.
 @MainActor
 final class DeviceMonitor: DeviceMonitoring {
 
@@ -103,13 +103,13 @@ final class DeviceMonitor: DeviceMonitoring {
             guard let self = self else { return }
             let newStatus = ADBStatus(result: result)
 
-            // Penemuan Wi-Fi hanya berarti jika ADB berjalan dan pengguna tidak mematikannya.
+            // Wi-Fi discovery only matters when ADB works and the user has not turned it off.
             guard case .devices(let devices) = newStatus, self.discoverySettings.wirelessDiscoveryEnabled else {
                 self.finishPoll(with: newStatus, wireless: [])
                 return
             }
             self.discovery.discoverWireless { [weak self] discovered in
-                // Kegagalan penemuan (mis. mDNS tidak tersedia) bukan error: daftar Wi-Fi cukup dikosongkan.
+                // A discovery failure (for example mDNS unavailable) is not an error: just empty the Wi-Fi list.
                 let available = ((try? discovered.get()) ?? []).filter { !$0.isConnected(among: devices) }
                 self?.finishPoll(with: newStatus, wireless: available)
             }

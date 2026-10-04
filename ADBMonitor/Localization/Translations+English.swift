@@ -8,7 +8,7 @@
 import Foundation
 
 extension Translations {
-    /// Bahasa acuan dan fallback untuk kunci yang belum diterjemahkan.
+    /// Reference language and fallback for keys that are not translated yet.
     static let english: [L10nKey: String] = [
         .menuChecking: "Checking for devices…",
         .menuNoDevices: "No devices connected",

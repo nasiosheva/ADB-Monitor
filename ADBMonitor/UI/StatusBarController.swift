@@ -7,16 +7,16 @@
 
 import AppKit
 
-/// Abstraksi tampilan menu bar, supaya `AppCoordinator` bisa diuji tanpa membuat `NSStatusItem` sungguhan.
+/// Abstraction of the menu bar view, so `AppCoordinator` can be tested without a real `NSStatusItem`.
 @MainActor
 protocol StatusBarRendering: AnyObject {
-    /// `nil` berarti belum ada hasil polling pertama.
+    /// `nil` means there is no result from the first poll yet.
     func render(_ status: ADBStatus?)
-    /// Layanan Wi-Fi yang tersedia (ditemukan, belum tersambung).
+    /// Wi-Fi services that are available (found, not yet connected).
     func renderWireless(_ services: [WirelessService])
 }
 
-/// Memiliki `NSStatusItem` di menu bar dan menyinkronkan tombol serta dropdown dengan `ADBStatus`.
+/// Owns the `NSStatusItem` in the menu bar and keeps the button and dropdown in sync with `ADBStatus`.
 @MainActor
 final class StatusBarController: StatusBarRendering {
 
@@ -58,7 +58,7 @@ final class StatusBarController: StatusBarRendering {
         menuBuilder.populate(menu, for: lastStatus, wireless: lastWireless)
     }
 
-    /// Bahasa berubah: bangun ulang menu dengan status terakhir tanpa menunggu poll berikutnya.
+    /// The language changed: rebuild the menu from the last status without waiting for the next poll.
     @objc private func languageDidChange() {
         render(lastStatus)
     }

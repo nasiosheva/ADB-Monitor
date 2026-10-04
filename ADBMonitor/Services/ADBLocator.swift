@@ -8,8 +8,8 @@
 import Foundation
 
 protocol ADBLocating {
-    /// Path `adb` yang bisa dieksekusi, atau `nil`.
-    /// Jika `customPath` diisi, hanya path itu yang diperiksa (tanpa fallback ke deteksi otomatis).
+    /// Path of an executable `adb`, or `nil`.
+    /// If `customPath` is set, only that path is checked (no fallback to auto-detection).
     func locate(customPath: String?) -> String?
 }
 
@@ -26,7 +26,7 @@ struct ADBLocator: ADBLocating {
     private let homeDirectory: String
     private let wellKnownPaths: [String]
 
-    /// `wellKnownPaths` bisa diganti agar hasil pencarian tidak bergantung pada isi disk (dipakai oleh pengujian).
+    /// `wellKnownPaths` can be replaced so the search result does not depend on what is on disk (used by tests).
     init(environment: [String: String] = ProcessInfo.processInfo.environment,
          fileManager: FileManager = .default,
          homeDirectory: String = NSHomeDirectory(),

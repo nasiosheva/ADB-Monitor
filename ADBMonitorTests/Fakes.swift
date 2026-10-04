@@ -8,7 +8,7 @@
 import Foundation
 @testable import ADBMonitor
 
-/// Mencatat urutan panggilan lintas fake, untuk memeriksa urutan kejadian.
+/// Records call order across fakes, to check the order of events.
 final class CallLog {
     private(set) var entries: [String] = []
     func record(_ entry: String) { entries.append(entry) }
@@ -51,7 +51,7 @@ func output(_ stdout: String = "", stderr: String = "", exit: Int32 = 0) -> Proc
     ProcessOutput(stdout: stdout, stderr: stderr, exitCode: exit)
 }
 
-/// `ADBServicing` yang hasilnya dikendalikan tes. `listDevices` baru selesai saat tes memanggil `completeList`.
+/// An `ADBServicing` whose results the test controls. `listDevices` only finishes when the test calls `completeList`.
 final class FakeADBService: ADBServicing {
     private(set) var pendingLists: [(Result<[ADBDevice], ADBError>) -> Void] = []
     private(set) var performCalls: [(action: PowerAction, serial: String)] = []
@@ -87,7 +87,7 @@ final class FakeScheduler: Scheduling {
         return task
     }
 
-    /// Melepas semua closure tersimpan, meniru `Timer` yang melepas closure-nya setelah berjalan.
+    /// Drops all stored closures, like a `Timer` that releases its closure after it has run.
     func reset() { scheduled.removeAll() }
 }
 
@@ -99,7 +99,7 @@ struct StubLanguage: LanguageProviding {
     var languagePreference: LanguagePreference
 }
 
-// MARK: - App layer (semua @MainActor, mengikuti protokolnya)
+// MARK: - App layer (all @MainActor, following their protocols)
 
 @MainActor
 final class FakeMonitor: DeviceMonitoring {
@@ -192,7 +192,7 @@ final class RecordingMenuHandler: StatusMenuActionHandling {
     func statusMenu(didRequestSwitchToWireless device: ADBDevice) { switches.append(device) }
 }
 
-// MARK: - Pengaturan device
+// MARK: - Device settings
 
 final class FakeSettingsOpener: DeviceSettingsOpening {
     var result: Result<Void, ADBError> = .success(())
@@ -217,7 +217,7 @@ final class MutableDiscoverySettings: WirelessDiscoveryProviding {
     init(_ enabled: Bool) { wirelessDiscoveryEnabled = enabled }
 }
 
-/// `discoverWireless` baru selesai saat tes memanggil `complete`.
+/// `discoverWireless` only finishes when the test calls `complete`.
 final class FakeWirelessDiscovery: WirelessDiscovering {
     private(set) var pending: [(Result<[WirelessService], ADBError>) -> Void] = []
 
@@ -231,7 +231,7 @@ final class FakeWirelessDiscovery: WirelessDiscovering {
 }
 
 final class FakeWirelessController: WirelessControlling {
-    var connectResults: [Result<Void, ADBError>] = []   // dipakai berurutan; kosong = sukses
+    var connectResults: [Result<Void, ADBError>] = []   // used in order; empty = success
     var pairResult: Result<Void, ADBError> = .success(())
     var disconnectResult: Result<Void, ADBError> = .success(())
     var wifiResult: Result<String, ADBError> = .success("192.168.1.23")
@@ -306,7 +306,7 @@ final class FakeWirelessPrompter: WirelessPrompting {
     }
 }
 
-/// Mencatat panggilan lewat `WirelessActionHandling`, untuk memeriksa penerusan dari `AppCoordinator`.
+/// Records calls made through `WirelessActionHandling`, to check forwarding from `AppCoordinator`.
 @MainActor
 final class RecordingWirelessHandler: WirelessActionHandling {
     private(set) var calls: [String] = []
@@ -318,7 +318,7 @@ final class RecordingWirelessHandler: WirelessActionHandling {
     func statusMenu(didRequestSwitchToWireless device: ADBDevice) { calls.append("switch:\(device.serial)") }
 }
 
-/// `ProcessRunning` yang mengembalikan hasil berurutan (satu per pemanggilan) dan mencatat argumennya.
+/// A `ProcessRunning` that returns results in sequence (one per call) and records its arguments.
 final class SequencedProcessRunner: ProcessRunning {
     private var results: [Result<ProcessOutput, ProcessError>]
     private(set) var calls: [[String]] = []
@@ -335,7 +335,7 @@ final class SequencedProcessRunner: ProcessRunning {
     }
 }
 
-// MARK: - Contoh data
+// MARK: - Sample data
 
 enum Sample {
     static func device(_ serial: String = "SER1",

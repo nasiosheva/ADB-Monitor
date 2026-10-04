@@ -8,13 +8,13 @@
 import Foundation
 
 protocol ADBServicing {
-    /// `completion` dipanggil di thread yang sama dengan `ProcessRunning` (main untuk implementasi default).
+    /// `completion` is called on the same thread as `ProcessRunning` (main for the default implementation).
     func listDevices(completion: @escaping (Result<[ADBDevice], ADBError>) -> Void)
     func perform(_ action: PowerAction, on serial: String, completion: @escaping (Result<Void, ADBError>) -> Void)
 }
 
-/// Fasad command ADB: menentukan lokasi binary, menjalankan command, lalu menerjemahkan hasilnya
-/// ke model domain. Tidak tahu apa pun soal polling maupun UI.
+/// ADB command facade: locates the binary, runs the command, then translates the result
+/// into domain models. Knows nothing about polling or UI.
 final class ADBService: ADBServicing {
 
     typealias RawResult = Result<ProcessOutput, ProcessError>
@@ -88,7 +88,7 @@ final class ADBService: ADBServicing {
         firstLine(of: output.stderr) ?? "adb exited with code \(output.exitCode)."
     }
 
-    /// Baris pertama yang tidak kosong, atau `nil`.
+    /// First non-empty line, or `nil`.
     static func firstLine(of text: String) -> String? {
         text.split(whereSeparator: \.isNewline).map { $0.trimmed }.first { !$0.isEmpty }
     }

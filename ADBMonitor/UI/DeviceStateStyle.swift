@@ -7,7 +7,7 @@
 
 import AppKit
 
-/// Gaya tampilan untuk `ADBDevice.State`, dipisahkan dari model agar model tidak bergantung pada AppKit.
+/// Display style for `ADBDevice.State`, kept apart from the model so the model does not depend on AppKit.
 extension ADBDevice.State {
 
     var indicatorColor: NSColor {
@@ -19,7 +19,7 @@ extension ADBDevice.State {
         }
     }
 
-    /// Kunci petunjuk untuk pengguna jika state memerlukan tindakan.
+    /// Key of the hint for the user when the state needs action.
     var hintKey: L10nKey? {
         switch self {
         case .unauthorized: return .hintUnauthorized
@@ -29,11 +29,11 @@ extension ADBDevice.State {
         }
     }
 
-    /// Judul menu dengan titik berwarna di depan, misalnya "● Pixel 3a (…) — Connected".
+    /// Menu title with a colored dot in front, for example "● Pixel 3a (…) — Connected".
     ///
-    /// Warna dibawa oleh judul beratribut, bukan `NSMenuItem.image`: macOS tidak menampilkan gambar kustom
-    /// pada item menu ini (SF Symbol, bitmap, maupun drawing handler tidak muncul), sedangkan warna pada teks
-    /// tampil dan mengikuti light/dark mode lewat warna sistem dinamis.
+    /// The color is carried by an attributed title, not `NSMenuItem.image`: macOS does not draw custom images
+    /// on these menu items (SF Symbols, bitmaps, and drawing handlers all failed to show), while colored text
+    /// shows up and follows light/dark mode through dynamic system colors.
     func menuTitle(_ text: String) -> NSAttributedString {
         let font = NSFont.menuFont(ofSize: 0)
         let dot: [NSAttributedString.Key: Any] = [.foregroundColor: indicatorColor, .font: font]
